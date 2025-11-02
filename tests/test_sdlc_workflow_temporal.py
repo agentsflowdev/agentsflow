@@ -13,6 +13,8 @@ from temporalio.worker import Worker
 from agentsflow.activities import (
     ClaudeACPRequest,
     ClaudeACPResponse,
+    FinalizeGitRequest,
+    FinalizeGitResult,
     GitWorktreeRequest,
     GitWorktreeResult,
     JiraTaskDetails,
@@ -49,6 +51,9 @@ class ScenarioState:
     jira_result: JiraTaskDetails
     claude_calls: list[ClaudeRun] = field(default_factory=list)
     closed_sessions: list[str] = field(default_factory=list)
+    finalize_requests: list[FinalizeGitRequest] = field(default_factory=list)
+    finalize_results: list[FinalizeGitResult] = field(default_factory=list)
+    branch_override: str | None = None
 
 
 class MockClaude:
@@ -152,6 +157,17 @@ async def _run_workflow_with_mocks(
     async def claude_code_acp_activity(request: ClaudeACPRequest) -> ClaudeACPResponse:
         return await mock_claude(request)
 
+    @activity.defn(name="finalize_git_changes")
+    async def finalize_git_changes_activity(request: FinalizeGitRequest) -> FinalizeGitResult:
+        scenario.finalize_requests.append(request)
+        result = FinalizeGitResult(
+            branch_name=request.branch_name,
+            commit_sha=f"{request.branch_name}-sha",
+            pushed=False,
+        )
+        scenario.finalize_results.append(result)
+        return result
+
     @activity.defn(name="close_claude_session")
     async def close_claude_session_activity(session_id: str) -> None:
         scenario.closed_sessions.append(session_id)
@@ -166,6 +182,7 @@ async def _run_workflow_with_mocks(
                 create_git_worktree_activity,
                 fetch_jira_task_activity,
                 claude_code_acp_activity,
+                finalize_git_changes_activity,
                 close_claude_session_activity,
             ],
         ):
@@ -175,6 +192,7 @@ async def _run_workflow_with_mocks(
                 jira_task_url="https://example.atlassian.net/browse/ABC-123",
                 jira_email="dev@example.com",
                 jira_api_token="token",
+                branch_name=scenario.branch_override,
             )
             return await env.client.execute_workflow(
                 SDLCWorkflow.run,
@@ -220,12 +238,12 @@ async def test_workflow_retries_claude_until_checks_pass(monkeypatch):
 
     evaluation_agent = FakeEvaluationAgent(
         implementation_outputs=[
-            EvaluationOutput(task_done=False, tests_created=False, reasoning="Null inputs still fail"),
-            EvaluationOutput(task_done=True, tests_created=False, reasoning="Implementation complete; tests missing"),
+            EvaluationOutput(task_implemented=False, automated_tests_implemented=False, reasoning="Null inputs still fail"),
+            EvaluationOutput(task_implemented=True, automated_tests_implemented=False, reasoning="Implementation complete; tests missing"),
         ],
         test_outputs=[
-            EvaluationOutput(task_done=True, tests_created=False, reasoning="Tests still fail"),
-            EvaluationOutput(task_done=True, tests_created=True, reasoning="All tests pass"),
+            EvaluationOutput(task_implemented=True, automated_tests_implemented=False, reasoning="Tests still fail"),
+            EvaluationOutput(task_implemented=True, automated_tests_implemented=True, reasoning="All tests pass"),
         ],
     )
     review_agent = FakeReviewAgent(
@@ -299,10 +317,15 @@ async def test_workflow_retries_claude_until_checks_pass(monkeypatch):
     assert stages[-1] == "review"
 
     assert result.implementation.summary == "Implemented null handling for toggle."
-    assert result.evaluation.tests_created is True
+    assert result.evaluation.automated_tests_implemented is True
     assert result.test_plan is not None and "pytest" in result.test_plan.tooling_notes[0]
     assert result.review.approval is True
     assert result.release_plan.branch_name == "feature/abc-123-null-toggle"
+    assert scenario.finalize_requests
+    assert scenario.finalize_requests[0].commit_message == "feat: handle null inputs in toggle"
+    assert result.committed_branch == scenario.finalize_requests[0].branch_name
+    assert result.committed_sha == scenario.finalize_results[0].commit_sha
+    assert result.commit_pushed is False
 
 
 @pytest.mark.asyncio
@@ -342,11 +365,11 @@ async def test_workflow_fails_when_review_never_approves(monkeypatch):
 
     evaluation_agent = FakeEvaluationAgent(
         implementation_outputs=[
-            EvaluationOutput(task_done=False, tests_created=False, reasoning="Validation missing"),
-            EvaluationOutput(task_done=True, tests_created=True, reasoning="Implementation done"),
+            EvaluationOutput(task_implemented=False, automated_tests_implemented=False, reasoning="Validation missing"),
+            EvaluationOutput(task_implemented=True, automated_tests_implemented=True, reasoning="Implementation done"),
         ],
         test_outputs=[
-            EvaluationOutput(task_done=True, tests_created=True, reasoning="Tests pass"),
+            EvaluationOutput(task_implemented=True, automated_tests_implemented=True, reasoning="Tests pass"),
         ],
     )
     review_agent = FakeReviewAgent(
@@ -417,3 +440,4 @@ async def test_workflow_fails_when_review_never_approves(monkeypatch):
     assert scenario.closed_sessions[-1] == "session-001"
 
     assert scenario.closed_sessions == ["session-001"]
+    assert scenario.finalize_requests == []

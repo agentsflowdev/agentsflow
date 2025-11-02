@@ -97,6 +97,7 @@ async def _run_worker(args: argparse.Namespace) -> None:
         workflows=[SDLCWorkflow],
         activities=[
             activities.create_git_worktree,
+            activities.finalize_git_changes,
             activities.fetch_jira_task,
             activities.run_claude_code,
             activities.close_claude_session,

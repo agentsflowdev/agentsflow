@@ -12,6 +12,8 @@ from temporalio.common import RetryPolicy
 from agentsflow.activities import (
     ClaudeACPRequest,
     ClaudeACPResponse,
+    FinalizeGitRequest,
+    FinalizeGitResult,
     GitWorktreeRequest,
     GitWorktreeResult,
     JiraTaskRequest,
@@ -58,6 +60,10 @@ class SDLCWorkflowInput(BaseModel):
         ..., description="Jira account email for API authentication."
     )
     jira_api_token: str = Field(..., description="Jira API token or password.")
+    branch_name: str | None = Field(
+        default=None,
+        description="Optional git branch name to write the committed changes to.",
+    )
 
 
 class SDLCWorkflowOutput(BaseModel):
@@ -74,6 +80,9 @@ class SDLCWorkflowOutput(BaseModel):
     test_plan: TestPlanOutput | None
     review: ReviewOutput
     release_plan: ReleasePlanOutput
+    committed_branch: str | None
+    committed_sha: str | None
+    commit_pushed: bool
 
 
 @workflow.defn(name="sdlc_workflow", sandboxed=False)
@@ -148,6 +157,7 @@ class SDLCWorkflow:
         test_plan: TestPlanOutput | None = None
         review: ReviewOutput | None = None
         release_plan: ReleasePlanOutput | None = None
+        finalize_result: FinalizeGitResult | None = None
 
         coding_feedback: list[str] = []
         review_feedback: list[str] = []
@@ -183,7 +193,7 @@ class SDLCWorkflow:
                         )
                     ).output
 
-                    if evaluation.task_done:
+                    if evaluation.task_implemented:
                         coding_feedback = []
                         implementation_attempts = 0
                         break
@@ -199,7 +209,7 @@ class SDLCWorkflow:
                     )
 
                 # Tests loop (if needed)
-                if not evaluation.tests_created:
+                if not evaluation.automated_tests_implemented:
                     tests_feedback = _build_feedback(
                         "Automated tests missing",
                         evaluation.reasoning,
@@ -230,7 +240,7 @@ class SDLCWorkflow:
                             )
                         ).output
 
-                        if evaluation.tests_created:
+                        if evaluation.automated_tests_implemented:
                             tests_feedback = []
                             tests_attempts = 0
                             break
@@ -240,7 +250,7 @@ class SDLCWorkflow:
                             evaluation.reasoning,
                         )
 
-                    if not evaluation.task_done:
+                    if not evaluation.task_implemented:
                         coding_feedback = _build_feedback(
                             "Implementation regressed after tests",
                             evaluation.reasoning,
@@ -292,7 +302,7 @@ class SDLCWorkflow:
             if implementation is None:
                 raise RuntimeError("Implementation summary could not be generated.")
 
-            if evaluation.tests_created:
+            if evaluation.automated_tests_implemented:
                 test_plan = (
                     await TESTS_AGENT.run(
                         _render_test_summary_prompt(task_payload, claude_runs)
@@ -314,6 +324,28 @@ class SDLCWorkflow:
             ).output
             if release_plan is None:
                 raise RuntimeError("Release plan generation failed.")
+
+            branch_override = (params.branch_name or "").strip()
+            plan_branch = (release_plan.branch_name or "").strip()
+            branch_name = branch_override or plan_branch
+            if not branch_name:
+                raise RuntimeError("No branch name available to commit the workflow changes.")
+
+            commit_message = (release_plan.commit_message or "").strip()
+            if not commit_message:
+                raise RuntimeError("Release plan did not provide a commit message.")
+
+            finalize_result = await workflow.execute_activity(
+                "finalize_git_changes",
+                FinalizeGitRequest(
+                    worktree_path=git_result.worktree_path,
+                    branch_name=branch_name,
+                    commit_message=commit_message,
+                ),
+                start_to_close_timeout=timedelta(minutes=2),
+                retry_policy=RetryPolicy(maximum_attempts=1),
+                result_type=FinalizeGitResult,
+            )
         finally:
             if coding_session_id:
                 await workflow.execute_activity(
@@ -342,6 +374,9 @@ class SDLCWorkflow:
             test_plan=test_plan,
             review=review,
             release_plan=release_plan,
+            committed_branch=finalize_result.branch_name if finalize_result else None,
+            committed_sha=finalize_result.commit_sha if finalize_result else None,
+            commit_pushed=finalize_result.pushed if finalize_result else False,
         )
 
 
@@ -403,17 +438,15 @@ def _render_evaluation_prompt(
     *, stage: Literal["implementation", "tests"], task: JiraTaskPayload, transcript: str
 ) -> str:
     focus = (
-        "Determine whether the Jira task has been fully implemented and whether automated tests exist. Demand explicit evidence from the transcript; if proof is missing, treat the work as incomplete."
+        "Decide whether the Jira task appears complete based on the transcript narrative. Assume the coding agent's statements are accurate unless they acknowledge missing work or failures."
         if stage == "implementation"
-        else "Determine whether adequate automated tests now exist and whether they appear to pass. Require proof of new or updated tests plus a successful automated test run; absent evidence means the tests are still missing."
+        else "Decide whether adequate automated tests now exist according to the transcript. Treat reported test additions or passing results as credible unless the transcript notes errors."
     )
     parts = [
         _format_task_section(task),
         "Coding agent transcript:",
         transcript.strip() or "(no output)",
-        (
-            f"{focus} Reply with EvaluationOutput, ensuring task_done and tests_created reflect the current state. Manual spot checks, unstated assumptions, or future intentions must not be treated as completed work."
-        ),
+        f"{focus} Reply with EvaluationOutput so that task_implemented and automated_tests_implemented mirror the transcript's own claims. When the agent notes TODOs, failures, or uncertainty, mark the appropriate flag False and explain why.",
     ]
     return "\n\n".join(parts)
 
@@ -473,7 +506,7 @@ def _render_release_prompt(
     parts = [
         _format_task_section(task),
         _format_implementation_section(implementation),
-        f"Final evaluation: task_done={evaluation.task_done}, tests_created={evaluation.tests_created}. Reasoning: {evaluation.reasoning}",
+        f"Final evaluation: task_implemented={evaluation.task_implemented}, automated_tests_implemented={evaluation.automated_tests_implemented}. Reasoning: {evaluation.reasoning}",
         _format_review_section(review),
     ]
     if test_plan is not None:

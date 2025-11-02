@@ -96,10 +96,15 @@ def _create_git_worktree(request: GitWorktreeRequest) -> GitWorktreeResult:
 async def create_git_worktree(request: GitWorktreeRequest) -> GitWorktreeResult:
     """Implementation function callable from an activity wrapper."""
 
+    reference = request.reference or "HEAD"
+    activity.logger.debug(
+        "Creating git worktree",
+        extra={"repository": request.repository, "reference": reference},
+    )
+
     try:
         result = await asyncio.to_thread(_create_git_worktree, request)
     except Exception:
-        reference = request.reference or "HEAD"
         activity.logger.exception(
             "Failed to create git worktree", extra={"repository": request.repository, "reference": reference}
         )

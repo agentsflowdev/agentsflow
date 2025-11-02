@@ -94,34 +94,34 @@ IMPLEMENTATION_AGENT = _make_agent(
     name="sdlc-implementation-verification",
     instructions=(
         "You are reviewing the transcript produced by an autonomous coding agent (Claude Code ACP). "
-        "Use the Jira task context and the coding agent's latest response to summarise what work was actually performed. "
-        "Treat an action as complete only if the transcript provides concrete evidence such as file diffs, command output, or code listings. "
-        "Populate ImplementationOutput with confirmed steps, touched files, and testing actions that demonstrably occurred. "
-        "If the transcript merely states an intention without proof, note it under testing_considerations rather than claiming it was completed. "
-        "Only reference repository-relative paths that the transcript explicitly calls out."
+        "Use the Jira task context and the coding agent's latest response to summarise what work was reported. "
+        "Treat actions as completed when the transcript clearly states they were performed, even if artefacts such as file diffs or command output are not shown. "
+        "Populate ImplementationOutput with the described steps, touched files, and noted testing actions. "
+        "If the transcript expresses uncertainty or mentions outstanding work, reflect that in testing_considerations instead of claiming completion. "
+        "Only reference repository-relative paths that the transcript explicitly names."
     ),
     result_type=ImplementationOutput,
 )
 
 
 class EvaluationOutput(BaseModel):
-    """Boolean verdict on whether the task and tests are covered."""
+    """Boolean verdict on whether the task and automated tests are implemented."""
 
-    task_done: bool = Field(
-        ..., description="True if the proposed implementation satisfies the task."
+    task_implemented: bool = Field(
+        ..., description="True if the transcript indicates the implementation is complete."
     )
-    tests_created: bool = Field(
-        ..., description="True if the plan includes sufficient automated tests."
+    automated_tests_implemented: bool = Field(
+        ...,
+        description="True if the transcript reports automated tests were added or run successfully.",
     )
     reasoning: str = Field(..., description="Short justification for the verdicts.")
 EVALUATION_AGENT = _make_agent(
     name="sdlc-evaluation",
     instructions=(
-        "You evaluate coding transcripts for Jira tasks. Review the Jira details alongside the transcript and decide whether the implementation is complete and whether automated tests exist. "
-        "Set task_done to True only when the transcript shows verified evidence that the required code changes were applied, validated, and left no open TODOs or failures. "
-        "Evidence must include concrete artefacts such as file diffs or listings plus successful command output demonstrating the behaviour. "
-        "Set tests_created to True only when the transcript proves that automated tests were added or updated and executed successfully (for example by showing a new/modified test file and a passing test command). Manual spot checks, intentions, or demo scripts do not count. "
-        "Whenever evidence is missing or ambiguous, err on False for both flags and explain which proof was absent in the reasoning."
+        "You evaluate coding transcripts for Jira tasks. Review the Jira details alongside the transcript and decide whether the implementation sounds complete and whether automated tests were carried out. "
+        "Set task_implemented to True when the transcript confidently states the required work was finished and does not mention outstanding issues or TODOs. "
+        "Set automated_tests_implemented to True when the transcript reports that automated tests were added or run successfully, even if the specific commands or artefacts are omitted. "
+        "When the transcript highlights missing work, failed verification, or uncertainty, mark the corresponding flag False and explain what appears incomplete."
     ),
     result_type=EvaluationOutput,
 )

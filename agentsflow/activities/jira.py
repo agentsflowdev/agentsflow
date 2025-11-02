@@ -328,6 +328,14 @@ async def fetch_jira_task(request: JiraTaskRequest) -> JiraTaskDetails:
         raise ValueError("Both Jira account email/username and API token must be provided.")
 
     issue_key, base_candidates, original = _extract_issue_key(task_url)
+    activity.logger.debug(
+        "Fetching Jira task details",
+        extra={
+            "issue_key": issue_key,
+            "base_candidates": base_candidates,
+            "timeout_seconds": request.timeout_seconds,
+        },
+    )
 
     try:
         details = await asyncio.to_thread(
@@ -353,6 +361,15 @@ async def fetch_jira_task(request: JiraTaskRequest) -> JiraTaskDetails:
         )
         raise RuntimeError(message) from exc
 
+    activity.logger.debug(
+        "Fetched Jira task context",
+        extra={
+            "issue_key": details.issue_key,
+            "status": details.status,
+            "comment_count": len(details.comments),
+            "summary_chars": len(details.summary or ""),
+        },
+    )
     activity.logger.info(
         "Fetched Jira task",
         extra={"issue_key": details.issue_key, "status": details.status},

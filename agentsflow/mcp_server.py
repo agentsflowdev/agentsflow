@@ -23,6 +23,7 @@ mcp = FastMCP(
 async def run_sdlc_workflow(
     jira_url: str,
     repository: str,
+    branch_name: str | None = None,
     *,
     ctx: Context,
 ) -> dict[str, Any]:
@@ -33,6 +34,8 @@ async def run_sdlc_workflow(
         raise RuntimeError(
             "Jira credentials are missing. Set JIRA_EMAIL and JIRA_API_TOKEN in the environment or .env file."
         )
+
+    effective_branch = branch_name or defaults.branch_name
 
     args = SimpleNamespace(
         repository=repository,
@@ -45,6 +48,7 @@ async def run_sdlc_workflow(
         task_queue=defaults.task_queue,
         workflow_id=defaults.workflow_id,
         model=defaults.model,
+        branch_name=effective_branch,
     )
 
     await ctx.info(

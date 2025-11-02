@@ -343,17 +343,42 @@ async def run_claude_code(request: ClaudeACPRequest) -> ClaudeACPResponse:
     workspace_dir = Path(workspace_input).expanduser().resolve()
     workspace_dir.mkdir(parents=True, exist_ok=True)
 
+    activity.logger.debug(
+        "Received Claude ACP request",
+        extra={
+            "has_session": bool(request.session_id),
+            "workspace_dir": str(workspace_dir),
+            "prompt_chars": len(request.prompt),
+        },
+    )
+
     session: _ClaudeSession | None = None
 
     if request.session_id:
+        activity.logger.debug(
+            "Attempting to reuse existing Claude session",
+            extra={"session_id": request.session_id},
+        )
         session = await _session_registry.get(request.session_id)
         if session is not None and not session.is_alive():
+            activity.logger.debug(
+                "Stale Claude session detected; creating new session",
+                extra={"session_id": session.session_id},
+            )
             await _session_registry.remove(session.session_id)
             session = None
 
     if session is None:
         resolved_binary = _resolve_claude_binary(request.claude_binary)
         auto_approve = request.auto_approve if request.auto_approve is not None else True
+        activity.logger.debug(
+            "Launching Claude ACP session",
+            extra={
+                "claude_binary": resolved_binary,
+                "workspace_dir": str(workspace_dir),
+                "auto_approve": auto_approve,
+            },
+        )
         session = await _session_registry.create_session(
             claude_binary=resolved_binary,
             workspace_dir=workspace_dir,
@@ -362,6 +387,14 @@ async def run_claude_code(request: ClaudeACPRequest) -> ClaudeACPResponse:
 
     message, response = await session.send_prompt(request.prompt)
 
+    activity.logger.debug(
+        "Claude ACP prompt completed",
+        extra={
+            "session_id": session.session_id,
+            "response_stop_reason": response.stopReason,
+            "response_chars": len(message),
+        },
+    )
     activity.logger.info(
         "Claude Code ACP prompt executed",
         extra={"session_id": session.session_id, "stop_reason": response.stopReason},
@@ -376,6 +409,10 @@ async def run_claude_code(request: ClaudeACPRequest) -> ClaudeACPResponse:
 
 async def close_session(session_id: str) -> None:
     session = await _session_registry.get(session_id)
+    activity.logger.debug(
+        "Closing Claude session",
+        extra={"session_id": session_id, "found": session is not None},
+    )
     if session is None:
         return
     await _shutdown_process(session.process, session.connection)

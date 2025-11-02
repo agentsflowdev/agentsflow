@@ -1909,13 +1909,13 @@
                   {
                     "description": "Tell if task was done according to specification",
                     "multiple": "False",
-                    "name": "task_done",
+                    "name": "task_implemented",
                     "type": "bool"
                   },
                   {
                     "description": "Tell if tests were created for the task",
                     "multiple": "False",
-                    "name": "tests_created",
+                    "name": "automated_tests_implemented",
                     "type": "bool"
                   }
                 ]
@@ -3077,7 +3077,7 @@
                 "trace_as_input": true,
                 "trace_as_metadata": true,
                 "type": "str",
-                "value": "{tests_created}"
+                "value": "{automated_tests_implemented}"
               },
               "sep": {
                 "_input_type": "MessageTextInput",
