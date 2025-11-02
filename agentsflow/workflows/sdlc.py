@@ -1,0 +1,512 @@
+"""Temporal workflow orchestrating the SDLC automation pipeline."""
+
+from __future__ import annotations
+
+from datetime import timedelta
+from typing import Literal, Sequence
+
+from pydantic import BaseModel, Field
+from temporalio import workflow
+from temporalio.common import RetryPolicy
+
+from agentsflow.activities import (
+    ClaudeACPRequest,
+    ClaudeACPResponse,
+    GitWorktreeRequest,
+    GitWorktreeResult,
+    JiraTaskRequest,
+    JiraTaskDetails,
+)
+
+
+MAX_IMPLEMENTATION_ATTEMPTS = 4
+MAX_TEST_ATTEMPTS = 3
+MAX_REVIEW_ATTEMPTS = 3
+
+
+class ClaudeRun(BaseModel):
+    stage: Literal["implementation", "tests", "review"]
+    prompt: str
+    message: str
+    stop_reason: str | None = None
+from agentsflow.workflows.sdlc_agents import (
+    EVALUATION_AGENT,
+    IMPLEMENTATION_AGENT,
+    RELEASE_AGENT,
+    REVIEW_AGENT,
+    TESTS_AGENT,
+    EvaluationOutput,
+    ImplementationOutput,
+    JiraTaskPayload,
+    ReleasePlanOutput,
+    ReviewOutput,
+    TestPlanOutput,
+)
+
+
+class SDLCWorkflowInput(BaseModel):
+    """Parameters required to kick off the SDLC workflow."""
+
+    repository: str = Field(
+        ..., description="Local path or remote URL to the source repository."
+    )
+    reference: str | None = Field(
+        default=None, description="Optional git reference to base the worktree on."
+    )
+    jira_task_url: str = Field(..., description="URL pointing to the Jira issue.")
+    jira_email: str = Field(
+        ..., description="Jira account email for API authentication."
+    )
+    jira_api_token: str = Field(..., description="Jira API token or password.")
+
+
+class SDLCWorkflowOutput(BaseModel):
+    """Aggregated result of the SDLC workflow."""
+
+    worktree_path: str
+    repository_path: str
+    reference: str
+    coding_session_id: str | None
+    coding_stops: list[ClaudeRun]
+    jira: JiraTaskPayload
+    implementation: ImplementationOutput
+    evaluation: EvaluationOutput
+    test_plan: TestPlanOutput | None
+    review: ReviewOutput
+    release_plan: ReleasePlanOutput
+
+
+@workflow.defn(name="sdlc_workflow", sandboxed=False)
+class SDLCWorkflow:
+    """Temporal workflow mirroring the Langflow SDLC pipeline."""
+
+    @workflow.run
+    async def run(self, params: SDLCWorkflowInput) -> SDLCWorkflowOutput:  # noqa: D401
+        git_result = await workflow.execute_activity(
+            "create_git_worktree",
+            GitWorktreeRequest(
+                repository=params.repository, reference=params.reference
+            ),
+            start_to_close_timeout=timedelta(minutes=4),
+            retry_policy=RetryPolicy(maximum_attempts=3),
+            result_type=GitWorktreeResult,
+        )
+
+        jira_result = await workflow.execute_activity(
+            "fetch_jira_task",
+            JiraTaskRequest(
+                task_url=params.jira_task_url,
+                jira_email=params.jira_email,
+                jira_api_token=params.jira_api_token,
+            ),
+            start_to_close_timeout=timedelta(minutes=2),
+            retry_policy=RetryPolicy(maximum_attempts=4),
+            result_type=JiraTaskDetails,
+        )
+
+        task_payload = _build_task_payload(jira_result)
+
+        claude_session_id: str | None = None
+        claude_runs: list[ClaudeRun] = []
+
+        async def _invoke_claude(
+            stage: Literal["implementation", "tests", "review"], prompt: str
+        ) -> ClaudeACPResponse:
+            nonlocal claude_session_id
+            response = await workflow.execute_activity(
+                "claude_code_acp",
+                ClaudeACPRequest(
+                    prompt=prompt,
+                    session_id=claude_session_id,
+                    workspace_dir=git_result.worktree_path,
+                ),
+                start_to_close_timeout=timedelta(minutes=15),
+                retry_policy=RetryPolicy(maximum_attempts=1),
+                result_type=ClaudeACPResponse,
+            )
+            claude_session_id = response.session_id
+            claude_runs.append(
+                ClaudeRun(
+                    stage=stage,
+                    prompt=prompt,
+                    message=response.message,
+                    stop_reason=response.stop_reason,
+                )
+            )
+            return response
+
+        evaluation: EvaluationOutput | None = None
+        implementation: ImplementationOutput | None = None
+        test_plan: TestPlanOutput | None = None
+        review: ReviewOutput | None = None
+        release_plan: ReleasePlanOutput | None = None
+
+        coding_feedback: list[str] = []
+        coding_response: ClaudeACPResponse | None = None
+
+        try:
+            for attempt in range(1, MAX_IMPLEMENTATION_ATTEMPTS + 1):
+                coding_prompt = _render_claude_prompt(
+                    stage="implementation",
+                    task=task_payload,
+                    workspace_dir=git_result.worktree_path,
+                    feedback=coding_feedback,
+                )
+                coding_response = await _invoke_claude("implementation", coding_prompt)
+
+                evaluation_prompt = _render_evaluation_prompt(
+                    stage="implementation",
+                    task=task_payload,
+                    transcript=coding_response.message,
+                )
+                evaluation = (
+                    await EVALUATION_AGENT.run(evaluation_prompt)
+                ).output
+
+                if evaluation.task_done:
+                    break
+
+                coding_feedback = _build_feedback(
+                    "Implementation gaps detected",
+                    evaluation.reasoning,
+                )
+            else:
+                raise RuntimeError(
+                    "Exceeded implementation attempts without satisfying task requirements."
+                )
+
+            if evaluation is None:
+                raise RuntimeError(
+                    "Evaluation did not complete during implementation stage."
+                )
+
+            if not evaluation.tests_created:
+                tests_feedback = _build_feedback(
+                    "Automated tests missing",
+                    evaluation.reasoning,
+                )
+                for attempt in range(1, MAX_TEST_ATTEMPTS + 1):
+                    tests_prompt = _render_claude_prompt(
+                        stage="tests",
+                        task=task_payload,
+                        workspace_dir=git_result.worktree_path,
+                        feedback=tests_feedback,
+                    )
+                    test_response = await _invoke_claude("tests", tests_prompt)
+
+                    evaluation = (
+                        await EVALUATION_AGENT.run(
+                            _render_evaluation_prompt(
+                                stage="tests",
+                                task=task_payload,
+                                transcript=test_response.message,
+                            )
+                        )
+                    ).output
+
+                    if evaluation.tests_created:
+                        break
+
+                    tests_feedback = _build_feedback(
+                        "Automated tests still insufficient",
+                        evaluation.reasoning,
+                    )
+                else:
+                    raise RuntimeError(
+                        "Exceeded automated testing attempts without success."
+                    )
+
+            review_feedback: list[str] = []
+            for attempt in range(1, MAX_REVIEW_ATTEMPTS + 1):
+                review_prompt_text = _render_claude_prompt(
+                    stage="review",
+                    task=task_payload,
+                    workspace_dir=git_result.worktree_path,
+                    feedback=review_feedback,
+                )
+                review_response = await _invoke_claude("review", review_prompt_text)
+
+                review = (
+                    await REVIEW_AGENT.run(
+                        _render_review_evaluation_prompt(
+                            task_payload, review_response.message
+                        )
+                    )
+                ).output
+
+                if review.approval:
+                    break
+
+                review_feedback = _build_review_feedback(review)
+            else:
+                raise RuntimeError("Code review stage did not reach approval.")
+
+            if review is None:
+                raise RuntimeError("Review stage did not produce a result.")
+
+            implementation = (
+                await IMPLEMENTATION_AGENT.run(
+                    _render_implementation_summary_prompt(task_payload, claude_runs)
+                )
+            ).output
+            if implementation is None:
+                raise RuntimeError("Implementation summary could not be generated.")
+
+            if evaluation.tests_created:
+                test_plan = (
+                    await TESTS_AGENT.run(
+                        _render_test_summary_prompt(task_payload, claude_runs)
+                    )
+                ).output
+            else:
+                test_plan = None
+
+            release_plan = (
+                await RELEASE_AGENT.run(
+                    _render_release_prompt(
+                        task_payload,
+                        implementation,
+                        evaluation,
+                        review,
+                        test_plan,
+                    )
+                )
+            ).output
+            if release_plan is None:
+                raise RuntimeError("Release plan generation failed.")
+        finally:
+            if claude_session_id:
+                await workflow.execute_activity(
+                    "close_claude_session",
+                    claude_session_id,
+                    start_to_close_timeout=timedelta(minutes=1),
+                    retry_policy=RetryPolicy(maximum_attempts=3),
+                )
+
+        return SDLCWorkflowOutput(
+            worktree_path=git_result.worktree_path,
+            repository_path=git_result.repository_path,
+            reference=git_result.reference,
+            coding_session_id=claude_session_id,
+            coding_stops=claude_runs,
+            jira=task_payload,
+            implementation=implementation,
+            evaluation=evaluation,
+            test_plan=test_plan,
+            review=review,
+            release_plan=release_plan,
+        )
+
+
+def _build_task_payload(details: JiraTaskDetails) -> JiraTaskPayload:
+    comments = [
+        f"{comment.author}: {comment.body.strip()}"
+        for comment in details.comments
+        if comment.body and comment.body.strip()
+    ]
+    return JiraTaskPayload(
+        issue_key=details.issue_key,
+        summary=details.summary,
+        description=details.description,
+        comments=comments,
+    )
+
+
+def _render_claude_prompt(
+    *,
+    stage: Literal["implementation", "tests", "review"],
+    task: JiraTaskPayload,
+    workspace_dir: str | None,
+    feedback: Sequence[str],
+) -> str:
+    base = [
+        _format_task_section(task),
+        f"Workspace directory: {workspace_dir or 'unknown'}",
+    ]
+    if feedback:
+        base.append(
+            "Outstanding feedback:\n" + "\n".join(f"- {item}" for item in feedback)
+        )
+
+    if stage == "implementation":
+        base.append(
+            "Implement the task end-to-end. You may edit files, run commands, and install dependencies as needed. "
+            "Summarise the changes you made at the end of the session."
+        )
+    elif stage == "tests":
+        base.append(
+            "Focus exclusively on automated tests. Add or adjust tests so they cover the acceptance criteria. "
+            "Report which tests you created or updated and any commands you ran."
+        )
+    else:  # review
+        base.append(
+            "Perform a thorough code review of the current workspace. Highlight blockers, risks, and suggested improvements. "
+            "Do not make further code changes unless strictly required to inspect the code."
+        )
+
+    base.append("When finished, provide a concise summary of your actions.")
+    return "\n\n".join(base)
+
+
+def _render_evaluation_prompt(
+    *, stage: Literal["implementation", "tests"], task: JiraTaskPayload, transcript: str
+) -> str:
+    focus = (
+        "Determine whether the Jira task has been fully implemented and whether automated tests exist. Demand explicit evidence from the transcript; if proof is missing, treat the work as incomplete."
+        if stage == "implementation"
+        else "Determine whether adequate automated tests now exist and whether they appear to pass. Require proof of new or updated tests plus a successful automated test run; absent evidence means the tests are still missing."
+    )
+    parts = [
+        _format_task_section(task),
+        "Coding agent transcript:",
+        transcript.strip() or "(no output)",
+        (
+            f"{focus} Reply with EvaluationOutput, ensuring task_done and tests_created reflect the current state. Manual spot checks, unstated assumptions, or future intentions must not be treated as completed work."
+        ),
+    ]
+    return "\n\n".join(parts)
+
+
+def _render_review_evaluation_prompt(task: JiraTaskPayload, transcript: str) -> str:
+    parts = [
+        _format_task_section(task),
+        "Coding agent review transcript:",
+        transcript.strip() or "(no output)",
+        (
+            "Summarise the review findings and respond with ReviewOutput. Flag approval as False if any blocking issues remain or if the transcript lacks concrete evidence that code and automated tests were inspected."
+        ),
+    ]
+    return "\n\n".join(parts)
+
+
+def _render_implementation_summary_prompt(
+    task: JiraTaskPayload, runs: Sequence[ClaudeRun]
+) -> str:
+    relevant = [run for run in runs if run.stage in {"implementation", "tests"}]
+    transcript = "\n\n".join(
+        f"[{run.stage}] {run.message.strip()}" for run in relevant if run.message
+    )
+    parts = [
+        _format_task_section(task),
+        "Claude Code ACP sessions:",
+        transcript or "(no transcript)",
+        "Return an ImplementationOutput capturing the implemented behaviour, key steps, touched files, and testing considerations."
+    ]
+    return "\n\n".join(parts)
+
+
+def _render_test_summary_prompt(
+    task: JiraTaskPayload, runs: Sequence[ClaudeRun]
+) -> str:
+    transcript = "\n\n".join(
+        f"[{run.stage}] {run.message.strip()}"
+        for run in runs
+        if run.stage == "tests" and run.message
+    )
+    parts = [
+        _format_task_section(task),
+        "Claude Code ACP testing transcripts:",
+        transcript or "(no dedicated testing transcript)",
+        "Summarise the automated tests that now exist and respond with TestPlanOutput."
+    ]
+    return "\n\n".join(parts)
+
+
+def _render_release_prompt(
+    task: JiraTaskPayload,
+    implementation: ImplementationOutput,
+    evaluation: EvaluationOutput,
+    review: ReviewOutput,
+    test_plan: TestPlanOutput | None,
+) -> str:
+    parts = [
+        _format_task_section(task),
+        _format_implementation_section(implementation),
+        f"Final evaluation: task_done={evaluation.task_done}, tests_created={evaluation.tests_created}. Reasoning: {evaluation.reasoning}",
+        _format_review_section(review),
+    ]
+    if test_plan is not None:
+        parts.append(_format_test_plan_section(test_plan))
+    parts.append(
+        "Draft the source-control rollout details and respond with ReleasePlanOutput, including branch, commit message, PR title/body, and follow-up tasks."
+    )
+    return "\n\n".join(parts)
+
+
+def _build_feedback(title: str, reasoning: str) -> list[str]:
+    lines = [title]
+    detail = reasoning.strip()
+    if detail:
+        lines.append(detail)
+    return lines
+
+
+def _build_review_feedback(review: ReviewOutput) -> list[str]:
+    feedback: list[str] = []
+    if review.issues:
+        feedback.append("Address the following blocking issues:")
+        feedback.extend(f"Issue: {issue}" for issue in review.issues)
+    if review.recommendations:
+        feedback.append("Consider these follow-up improvements:")
+        feedback.extend(f"Recommendation: {rec}" for rec in review.recommendations)
+    if not feedback:
+        feedback.append("Review lacked sufficient detail—provide explicit findings.")
+    return feedback
+
+
+def _format_task_section(task: JiraTaskPayload) -> str:
+    lines = [
+        f"Issue: {task.issue_key}",
+        f"Summary: {task.summary}",
+        "Description:",
+        task.description.strip() or "(no description)",
+    ]
+    if task.comments:
+        lines.append("Comments:")
+        lines.extend(f"- {comment}" for comment in task.comments)
+    return "\n".join(lines)
+
+
+def _format_implementation_section(implementation: ImplementationOutput) -> str:
+    lines = [
+        f"Implementation summary: {implementation.summary}",
+        _format_list_section("Key steps", implementation.key_steps),
+        _format_list_section("Files to change", implementation.files_to_change),
+        _format_list_section(
+            "Testing considerations", implementation.testing_considerations
+        ),
+    ]
+    return "\n".join(lines)
+
+
+def _format_test_plan_section(test_plan: TestPlanOutput) -> str:
+    lines = [
+        f"Testing summary: {test_plan.summary}",
+        _format_list_section("Test cases", test_plan.test_cases),
+        _format_list_section("Tooling notes", test_plan.tooling_notes),
+    ]
+    return "\n".join(lines)
+
+
+def _format_review_section(review: ReviewOutput) -> str:
+    lines = [
+        f"Review approval: {'approved' if review.approval else 'blocked'}",
+        _format_list_section("Issues", review.issues),
+        _format_list_section("Recommendations", review.recommendations),
+        _format_list_section("Praise", review.praise),
+    ]
+    return "\n".join(lines)
+
+
+def _format_list_section(title: str, items: list[str]) -> str:
+    if not items:
+        return f"{title}: (none)"
+    return "\n".join([f"{title}:", *[f"- {item}" for item in items]])
+
+
+__all__ = [
+    "SDLCWorkflow",
+    "SDLCWorkflowInput",
+    "SDLCWorkflowOutput",
+    "ClaudeRun",
+]
