@@ -106,25 +106,33 @@ class SDLCWorkflow:
 
         task_payload = _build_task_payload(jira_result)
 
-        claude_session_id: str | None = None
+        coding_session_id: str | None = None
+        review_session_id: str | None = None
         claude_runs: list[ClaudeRun] = []
 
         async def _invoke_claude(
-            stage: Literal["implementation", "tests", "review"], prompt: str
+            stage: Literal["implementation", "tests", "review"],
+            prompt: str,
+            *,
+            session_kind: Literal["coding", "review"],
         ) -> ClaudeACPResponse:
-            nonlocal claude_session_id
+            nonlocal coding_session_id, review_session_id
+            session_id = coding_session_id if session_kind == "coding" else review_session_id
             response = await workflow.execute_activity(
                 "claude_code_acp",
                 ClaudeACPRequest(
                     prompt=prompt,
-                    session_id=claude_session_id,
+                    session_id=session_id,
                     workspace_dir=git_result.worktree_path,
                 ),
                 start_to_close_timeout=timedelta(minutes=15),
                 retry_policy=RetryPolicy(maximum_attempts=1),
                 result_type=ClaudeACPResponse,
             )
-            claude_session_id = response.session_id
+            if session_kind == "coding":
+                coding_session_id = response.session_id
+            else:
+                review_session_id = response.session_id
             claude_runs.append(
                 ClaudeRun(
                     stage=stage,
@@ -142,104 +150,134 @@ class SDLCWorkflow:
         release_plan: ReleasePlanOutput | None = None
 
         coding_feedback: list[str] = []
-        coding_response: ClaudeACPResponse | None = None
+        review_feedback: list[str] = []
+        implementation_attempts = 0
+        tests_attempts = 0
+        review_attempts = 0
 
         try:
-            for attempt in range(1, MAX_IMPLEMENTATION_ATTEMPTS + 1):
-                coding_prompt = _render_claude_prompt(
-                    stage="implementation",
-                    task=task_payload,
-                    workspace_dir=git_result.worktree_path,
-                    feedback=coding_feedback,
-                )
-                coding_response = await _invoke_claude("implementation", coding_prompt)
-
-                evaluation_prompt = _render_evaluation_prompt(
-                    stage="implementation",
-                    task=task_payload,
-                    transcript=coding_response.message,
-                )
-                evaluation = (
-                    await EVALUATION_AGENT.run(evaluation_prompt)
-                ).output
-
-                if evaluation.task_done:
-                    break
-
-                coding_feedback = _build_feedback(
-                    "Implementation gaps detected",
-                    evaluation.reasoning,
-                )
-            else:
-                raise RuntimeError(
-                    "Exceeded implementation attempts without satisfying task requirements."
-                )
-
-            if evaluation is None:
-                raise RuntimeError(
-                    "Evaluation did not complete during implementation stage."
-                )
-
-            if not evaluation.tests_created:
-                tests_feedback = _build_feedback(
-                    "Automated tests missing",
-                    evaluation.reasoning,
-                )
-                for attempt in range(1, MAX_TEST_ATTEMPTS + 1):
-                    tests_prompt = _render_claude_prompt(
-                        stage="tests",
+            while True:
+                # Implementation loop
+                while True:
+                    if implementation_attempts >= MAX_IMPLEMENTATION_ATTEMPTS:
+                        raise RuntimeError(
+                            "Exceeded implementation attempts without satisfying task requirements."
+                        )
+                    implementation_attempts += 1
+                    coding_prompt = _render_claude_prompt(
+                        stage="implementation",
                         task=task_payload,
                         workspace_dir=git_result.worktree_path,
-                        feedback=tests_feedback,
+                        feedback=coding_feedback,
                     )
-                    test_response = await _invoke_claude("tests", tests_prompt)
-
+                    coding_response = await _invoke_claude(
+                        "implementation", coding_prompt, session_kind="coding"
+                    )
                     evaluation = (
                         await EVALUATION_AGENT.run(
                             _render_evaluation_prompt(
-                                stage="tests",
+                                stage="implementation",
                                 task=task_payload,
-                                transcript=test_response.message,
+                                transcript=coding_response.message,
                             )
                         )
                     ).output
 
-                    if evaluation.tests_created:
+                    if evaluation.task_done:
+                        coding_feedback = []
                         break
 
-                    tests_feedback = _build_feedback(
-                        "Automated tests still insufficient",
+                    coding_feedback = _build_feedback(
+                        "Implementation gaps detected",
                         evaluation.reasoning,
                     )
-                else:
+
+                if evaluation is None:
                     raise RuntimeError(
-                        "Exceeded automated testing attempts without success."
+                        "Evaluation did not complete during implementation stage."
                     )
 
-            review_feedback: list[str] = []
-            for attempt in range(1, MAX_REVIEW_ATTEMPTS + 1):
-                review_prompt_text = _render_claude_prompt(
-                    stage="review",
-                    task=task_payload,
-                    workspace_dir=git_result.worktree_path,
-                    feedback=review_feedback,
-                )
-                review_response = await _invoke_claude("review", review_prompt_text)
-
-                review = (
-                    await REVIEW_AGENT.run(
-                        _render_review_evaluation_prompt(
-                            task_payload, review_response.message
+                # Tests loop (if needed)
+                if not evaluation.tests_created:
+                    tests_feedback = _build_feedback(
+                        "Automated tests missing",
+                        evaluation.reasoning,
+                    )
+                    while True:
+                        if tests_attempts >= MAX_TEST_ATTEMPTS:
+                            raise RuntimeError(
+                                "Exceeded automated testing attempts without success."
+                            )
+                        tests_attempts += 1
+                        tests_prompt = _render_claude_prompt(
+                            stage="tests",
+                            task=task_payload,
+                            workspace_dir=git_result.worktree_path,
+                            feedback=tests_feedback,
                         )
-                    )
-                ).output
+                        test_response = await _invoke_claude(
+                            "tests", tests_prompt, session_kind="coding"
+                        )
 
-                if review.approval:
+                        evaluation = (
+                            await EVALUATION_AGENT.run(
+                                _render_evaluation_prompt(
+                                    stage="tests",
+                                    task=task_payload,
+                                    transcript=test_response.message,
+                                )
+                            )
+                        ).output
+
+                        if evaluation.tests_created:
+                            tests_feedback = []
+                            break
+
+                        tests_feedback = _build_feedback(
+                            "Automated tests still insufficient",
+                            evaluation.reasoning,
+                        )
+
+                    if not evaluation.task_done:
+                        coding_feedback = _build_feedback(
+                            "Implementation regressed after tests",
+                            evaluation.reasoning,
+                        )
+                        continue
+
+                # Review loop
+                while True:
+                    if review_attempts >= MAX_REVIEW_ATTEMPTS:
+                        raise RuntimeError("Code review stage did not reach approval.")
+                    review_attempts += 1
+                    review_prompt_text = _render_claude_prompt(
+                        stage="review",
+                        task=task_payload,
+                        workspace_dir=git_result.worktree_path,
+                        feedback=review_feedback,
+                    )
+                    review_response = await _invoke_claude(
+                        "review", review_prompt_text, session_kind="review"
+                    )
+
+                    review = (
+                        await REVIEW_AGENT.run(
+                            _render_review_evaluation_prompt(
+                                task_payload, review_response.message
+                            )
+                        )
+                    ).output
+
+                    if review.approval:
+                        review_feedback = []
+                        break
+
+                    review_feedback = _build_review_feedback(review)
+                    coding_feedback = list(review_feedback)
                     break
 
-                review_feedback = _build_review_feedback(review)
-            else:
-                raise RuntimeError("Code review stage did not reach approval.")
+                if review and review.approval:
+                    break
 
             if review is None:
                 raise RuntimeError("Review stage did not produce a result.")
@@ -275,10 +313,17 @@ class SDLCWorkflow:
             if release_plan is None:
                 raise RuntimeError("Release plan generation failed.")
         finally:
-            if claude_session_id:
+            if coding_session_id:
                 await workflow.execute_activity(
                     "close_claude_session",
-                    claude_session_id,
+                    coding_session_id,
+                    start_to_close_timeout=timedelta(minutes=1),
+                    retry_policy=RetryPolicy(maximum_attempts=3),
+                )
+            if review_session_id:
+                await workflow.execute_activity(
+                    "close_claude_session",
+                    review_session_id,
                     start_to_close_timeout=timedelta(minutes=1),
                     retry_policy=RetryPolicy(maximum_attempts=3),
                 )
@@ -287,7 +332,7 @@ class SDLCWorkflow:
             worktree_path=git_result.worktree_path,
             repository_path=git_result.repository_path,
             reference=git_result.reference,
-            coding_session_id=claude_session_id,
+            coding_session_id=coding_session_id,
             coding_stops=claude_runs,
             jira=task_payload,
             implementation=implementation,
