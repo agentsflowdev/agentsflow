@@ -185,6 +185,7 @@ class SDLCWorkflow:
 
                     if evaluation.task_done:
                         coding_feedback = []
+                        implementation_attempts = 0
                         break
 
                     coding_feedback = _build_feedback(
@@ -231,6 +232,7 @@ class SDLCWorkflow:
 
                         if evaluation.tests_created:
                             tests_feedback = []
+                            tests_attempts = 0
                             break
 
                         tests_feedback = _build_feedback(
