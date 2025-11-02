@@ -440,7 +440,7 @@ def _render_evaluation_prompt(
     focus = (
         "Decide whether the Jira task appears complete based on the transcript narrative. Assume the coding agent's statements are accurate unless they acknowledge missing work or failures."
         if stage == "implementation"
-        else "Decide whether adequate automated tests now exist according to the transcript. Treat reported test additions or passing results as credible unless the transcript notes errors."
+        else "Decide whether adequate automated tests now exist according to the transcript. Only treat the tests as implemented when the transcript references running automated suites, commands, or specific test artefacts; manual spot checks alone are insufficient."
     )
     parts = [
         _format_task_section(task),

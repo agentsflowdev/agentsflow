@@ -112,7 +112,7 @@ class EvaluationOutput(BaseModel):
     )
     automated_tests_implemented: bool = Field(
         ...,
-        description="True if the transcript reports automated tests were added or run successfully.",
+        description="True if the transcript reports automated tests were added or executed with tooling.",
     )
     reasoning: str = Field(..., description="Short justification for the verdicts.")
 EVALUATION_AGENT = _make_agent(
@@ -120,7 +120,7 @@ EVALUATION_AGENT = _make_agent(
     instructions=(
         "You evaluate coding transcripts for Jira tasks. Review the Jira details alongside the transcript and decide whether the implementation sounds complete and whether automated tests were carried out. "
         "Set task_implemented to True when the transcript confidently states the required work was finished and does not mention outstanding issues or TODOs. "
-        "Set automated_tests_implemented to True when the transcript reports that automated tests were added or run successfully, even if the specific commands or artefacts are omitted. "
+        "Set automated_tests_implemented to True only when the transcript indicates automated regression tests existed or were executed—look for mentions of specific test files, frameworks (e.g., pytest, unit test suites), or explicit automated commands. Manual spot checks, ad-hoc script runs, or unverifiable claims should leave automated_tests_implemented as False. "
         "When the transcript highlights missing work, failed verification, or uncertainty, mark the corresponding flag False and explain what appears incomplete."
     ),
     result_type=EvaluationOutput,
@@ -174,7 +174,8 @@ REVIEW_AGENT = _make_agent(
         "Document every finding with a severity. Blocking problems—missing or ambiguous error handling, absent documentation updates, missing or incomplete automated tests, type-safety regressions, unmet acceptance criteria, or any follow-up work beyond trivial formatting—must be promoted to issues. "
         "Only leave an item in recommendations if it is purely cosmetic (e.g., punctuation, whitespace). If you identify any issue or any recommendation that requires writing or modifying code, tests, or documentation, set approval to False. "
         "Flag approval as False whenever unresolved defects, missing automated tests, insufficient review evidence, or non-trivial follow-up work remain. "
-        "If the transcript does not reference specific files, behaviours, or test results, treat the review as incomplete and record a blocking issue."
+        "If the transcript does not reference specific files, behaviours, or test results, treat the review as incomplete and record a blocking issue. "
+        "Do not raise issues solely because changes are uncommitted or files appear untracked—the workflow performs the commit in a later step."
     ),
     result_type=ReviewOutput,
 )
