@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from temporal_agents.activities import jira
+from agentsflow.activities import jira
 
 
 @pytest.mark.asyncio

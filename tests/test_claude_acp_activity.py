@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from temporal_agents.activities import claude_acp
+from agentsflow.activities import claude_acp
 
 
 class FakeSession:

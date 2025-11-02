@@ -15,6 +15,34 @@ wheels = [
 ]
 
 [[package]]
+name = "agentsflow"
+version = "0.1.0"
+source = { virtual = "." }
+dependencies = [
+    { name = "agent-client-protocol" },
+    { name = "gitpython" },
+    { name = "jira" },
+    { name = "temporalio" },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "agent-client-protocol", specifier = ">=0.6.2" },
+    { name = "gitpython", specifier = ">=3.1.43" },
+    { name = "jira", specifier = ">=3.8.0" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.3" },
+    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.23" },
+    { name = "temporalio", specifier = ">=1.8.0,<1.9" },
+]
+provides-extras = ["dev"]
+
+[[package]]
 name = "annotated-types"
 version = "0.7.0"
 source = { registry = "https://pypi.org/simple" }
@@ -376,34 +404,6 @@ sdist = { url = "https://files.pythonhosted.org/packages/44/cd/a040c4b3119bbe532
 wheels = [
     { url = "https://files.pythonhosted.org/packages/04/be/d09147ad1ec7934636ad912901c5fd7667e1c858e19d355237db0d0cd5e4/smmap-5.0.2-py3-none-any.whl", hash = "sha256:b30115f0def7d7531d22a0fb6502488d879e75b260a9db4d0819cfb25403af5e", size = 24303, upload-time = "2025-01-02T07:14:38.724Z" },
 ]
-
-[[package]]
-name = "temporal-agents"
-version = "0.1.0"
-source = { virtual = "." }
-dependencies = [
-    { name = "agent-client-protocol" },
-    { name = "gitpython" },
-    { name = "jira" },
-    { name = "temporalio" },
-]
-
-[package.optional-dependencies]
-dev = [
-    { name = "pytest" },
-    { name = "pytest-asyncio" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "agent-client-protocol", specifier = ">=0.6.2" },
-    { name = "gitpython", specifier = ">=3.1.43" },
-    { name = "jira", specifier = ">=3.8.0" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.3" },
-    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.23" },
-    { name = "temporalio", specifier = ">=1.8.0,<1.9" },
-]
-provides-extras = ["dev"]
 
 [[package]]
 name = "temporalio"
