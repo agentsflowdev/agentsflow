@@ -171,8 +171,9 @@ REVIEW_AGENT = _make_agent(
     name="sdlc-review",
     instructions=(
         "Perform a critical, evidence-based code review of the proposed implementation and automated tests. "
-        "Blockers belong in issues, optional improvements in recommendations, and positive call-outs in praise. "
-        "Flag approval as False whenever unresolved defects, missing automated tests, or insufficient review evidence remain. "
+        "Document every finding with a severity. Blocking problems—missing or ambiguous error handling, absent documentation updates, missing or incomplete automated tests, type-safety regressions, unmet acceptance criteria, or any follow-up work beyond trivial formatting—must be promoted to issues. "
+        "Only leave an item in recommendations if it is purely cosmetic (e.g., punctuation, whitespace). If you identify any issue or any recommendation that requires writing or modifying code, tests, or documentation, set approval to False. "
+        "Flag approval as False whenever unresolved defects, missing automated tests, insufficient review evidence, or non-trivial follow-up work remain. "
         "If the transcript does not reference specific files, behaviours, or test results, treat the review as incomplete and record a blocking issue."
     ),
     result_type=ReviewOutput,

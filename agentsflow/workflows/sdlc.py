@@ -373,7 +373,7 @@ def _render_review_evaluation_prompt(task: JiraTaskPayload, transcript: str) -> 
         "Coding agent review transcript:",
         transcript.strip() or "(no output)",
         (
-            "Summarise the review findings and respond with ReviewOutput. Flag approval as False if any blocking issues remain or if the transcript lacks concrete evidence that code and automated tests were inspected."
+            "Summarise the review findings and respond with ReviewOutput. If you identify any issue or recommendation that requires modifying code, tests, documentation, or automation, classify it as an issue and set approval to False. Flag approval as False if any blocking issues remain or if the transcript lacks concrete evidence that code and automated tests were inspected."
         ),
     ]
     return "\n\n".join(parts)
