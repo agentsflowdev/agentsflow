@@ -31,6 +31,7 @@ class CLISettings(BaseSettings):
     task_queue: str = Field(default="agentsflow-sdlc", alias="SDLC_TASK_QUEUE")
     workflow_id: str | None = Field(default=None, alias="SDLC_WORKFLOW_ID")
     model: str | None = Field(default=None, alias="SDLC_AGENT_MODEL")
+    branch_name: str | None = Field(default=None, alias="SDLC_BRANCH_NAME")
     json_output: bool = Field(default=False, alias="SDLC_JSON_OUTPUT")
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", populate_by_name=True, extra="ignore")
@@ -98,6 +99,12 @@ def _parse_args(argv: list[str], defaults: CLISettings) -> argparse.Namespace:
         default=defaults.model,
         help="Override chat model used by the SDLC agents (env: SDLC_AGENT_MODEL).",
     )
+    parser.add_argument(
+        "--branch",
+        dest="branch_name",
+        default=defaults.branch_name,
+        help="Optional branch name to commit workflow changes into (env: SDLC_BRANCH_NAME).",
+    )
     parser.set_defaults(json=defaults.json_output)
     parser.add_argument(
         "--json",
@@ -137,6 +144,7 @@ async def _run_workflow(args: argparse.Namespace) -> SDLCWorkflowOutput:
         jira_task_url=args.jira_url,
         jira_email=args.jira_email,
         jira_api_token=args.jira_token,
+        branch_name=args.branch_name,
     )
 
     workflow_id = args.workflow_id or _derive_workflow_id(args.jira_url)
