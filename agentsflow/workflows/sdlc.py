@@ -377,13 +377,14 @@ def _render_claude_prompt(
 
     if stage == "implementation":
         base.append(
-            "Implement the task end-to-end. You may edit files, run commands, and install dependencies as needed. "
-            "Summarise the changes you made at the end of the session."
+            "Implement the task end-to-end. Stay tightly scoped to the acceptance criteria—avoid creating placeholder assets, "
+            "renaming files, or adding new dependencies unless they are essential to the solution. "
+            "Summarise the work by listing each file you touched alongside the intent of the change."
         )
     elif stage == "tests":
         base.append(
-            "Focus exclusively on automated tests. Add or adjust tests so they cover the acceptance criteria. "
-            "Report which tests you created or updated and any commands you ran."
+            "Focus exclusively on automated tests. Limit edits to test code and supporting fixtures unless a minimal production "
+            "change is strictly required for the tests to run. Report which tests you created or updated and any commands you ran."
         )
     else:  # review
         base.append(
@@ -391,7 +392,10 @@ def _render_claude_prompt(
             "Do not make further code changes unless strictly required to inspect the code."
         )
 
-    base.append("When finished, provide a concise summary of your actions.")
+    base.append(
+        "When finished, provide a concise summary of your actions that enumerates every file you created or modified, "
+        "explains the intent for each, and confirms you avoided unrelated or unnecessary changes."
+    )
     return "\n\n".join(base)
 
 
