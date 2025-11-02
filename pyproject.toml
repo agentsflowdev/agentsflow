@@ -5,10 +5,14 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "temporalio>=1.8.0,<1.9",
+    "temporalio>=1.18.0",
     "gitpython>=3.1.43",
     "jira>=3.8.0",
     "agent-client-protocol>=0.6.2",
+    "pydantic-ai-slim[temporal,openai]>=1.9.1",
+    "pydantic-settings>=2.4.0",
+    "logfire>=4.14.2",
+    "fastmcp>=2.13.0.2",
 ]
 
 [project.optional-dependencies]

@@ -68,6 +68,127 @@ Each activity accepts and returns typed dataclasses defined in the `agentsflow`
 package. Consult the docstrings in `agentsflow/activities/*.py` for parameter
 details and payload structures.
 
+SDLC Workflow
+-------------
+The repository also ships with a high-level workflow that mirrors the Langflow
+SDLC pipeline while relying on [PydanticAI's Temporal integration](https://ai.pydantic.dev/durable_execution/temporal/)
+for LLM calls. Register it alongside the activities:
+
+```python
+import os
+
+from temporalio.worker import Worker
+
+from agentsflow import AgentsFlowActivities
+from agentsflow.workflows import SDLCWorkflow, SDLCWorkflowInput
+
+activities = AgentsFlowActivities()
+
+worker = Worker(
+    client=temporal_client,
+    task_queue="agentsflow-sdlc",
+    activities=[
+        activities.create_git_worktree,
+        activities.fetch_jira_task,
+    ],
+    workflows=[SDLCWorkflow],
+)
+
+execution = await temporal_client.start_workflow(
+    SDLCWorkflow.run,
+    SDLCWorkflowInput(
+        repository="git@github.com:example/repo.git",
+        reference="main",
+        jira_task_url="https://example.atlassian.net/browse/ABC-123",
+        jira_email="dev@example.com",
+        jira_api_token=os.environ["JIRA_API_TOKEN"],
+    ),
+    id="abc-123",
+    task_queue="agentsflow-sdlc",
+)
+result = await execution.result()
+print(result.model_dump())
+```
+
+Set `SDLC_AGENT_MODEL` to override the default OpenAI chat model used by the
+underlying agents when necessary.
+
+Running the Workflow
+--------------------
+After configuring `.env` you can start the full SDLC flow with three steps:
+
+1. **Start Temporal** – run the Temporal CLI or your own cluster (`temporal server start-dev`).
+2. **Launch the worker** – from the project root, the worker reads `.env` for
+   values like `TEMPORAL_ADDRESS`, `OPENAI_API_KEY`, `SDLC_TASK_QUEUE`,
+   `CLAUDE_CODE_BIN`, and `CLAUDE_AUTO_APPROVE` and falls back to flags when
+   provided:
+
+   ```bash
+   python -m agentsflow.worker
+   ```
+
+   The worker automatically registers the Pydantic v2 data converter so models are
+   serialised/deserialised without warnings. It also exposes the Claude Code ACP
+   activity plus TemporalAgent plugins used for verification. Use
+   `python -m agentsflow.worker --help` to override defaults (e.g. task queue or server address).
+3. **Trigger the workflow** – in another shell run the CLI. Any flag overrides
+   the `.env` values; for a minimal run specify the Jira URL and repository path
+   if they are not already present as `SDLC_JIRA_URL` / `SDLC_REPOSITORY` in `.env`:
+
+   ```bash
+   python -m agentsflow.cli \
+     --repository /path/to/checkout \
+     --jira-url https://example.atlassian.net/browse/ABC-123 \
+     --json
+   ```
+
+   Add `--reference`, `--model`, or `--workflow-id` when you need to
+   deviate from the values stored in `.env`.
+
+FastMCP Server
+--------------
+You can invoke the same Temporal workflow through an [MCP](https://github.com/modelcontextprotocol/cli) server powered by
+[FastMCP](https://github.com/jlowin/fastmcp). The server is defined in `agentsflow/mcp_server.py`
+and exposes a single tool, `run_sdlc_workflow`, requiring two parameters:
+
+- `jira_url`
+- `repository`
+
+All other workflow settings are sourced from environment variables via `CLISettings`.
+Ensure the following are exported or placed in `.env` before invoking the tool:
+
+- `JIRA_EMAIL` – Jira username used for API authentication
+- `JIRA_API_TOKEN` – Jira API token/password
+- `OPENAI_API_KEY` – used by the SDLC coding/verification agents
+- Optional overrides: `TEMPORAL_ADDRESS`, `TEMPORAL_NAMESPACE`, `SDLC_TASK_QUEUE`, `SDLC_AGENT_MODEL`, `SDLC_REFERENCE`, `SDLC_WORKFLOW_ID`
+
+Run the server over stdio (ideal for MCP-compatible clients):
+
+```bash
+uv run fastmcp run agentsflow/mcp_server.py
+```
+
+Clients supply the Jira URL and repository path when calling the tool. The returned payload is the structured
+`SDLCWorkflowOutput` from Temporal, allowing downstream automations to inspect paths, Claude transcripts, and verification artefacts.
+
+Workflow stages
+---------------
+1. **Git worktree & Jira fetch** – activities clone an isolated worktree and
+   pull the Jira task metadata.
+2. **Coding agent (Claude Code ACP)** – the workflow prompts the Claude ACP
+   binary to implement the task directly inside the worktree. It loops through
+   ACP sessions until the verification checks confirm the task is complete.
+3. **Verification agents (PydanticAI)** – once a coding pass finishes, the
+   verification agents summarise the transcript, evaluate task coverage, and
+   decide whether automated tests exist. Failed checks push the workflow back to
+   Claude Code ACP for another iteration (for example, a dedicated testing run).
+   When everything passes, additional agents perform the review and outline the
+   release plan. These agents never modify the repository—they only analyse the
+   coding agent’s output.
+4. **Structured result** – the workflow returns the worktree paths alongside the
+   Claude transcript and all verification artefacts (`ImplementationOutput`,
+   `EvaluationOutput`, `TestPlanOutput`, `ReviewOutput`, `ReleasePlanOutput`).
+
 Development Notes
 -----------------
 - The project uses `uv` for dependency management; run `uv sync` whenever
