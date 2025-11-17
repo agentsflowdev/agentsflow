@@ -29,11 +29,37 @@ class IssueActivities:
 
     @activity.defn(name="fetch_jira_task")
     async def fetch_jira_task(self, request: JiraTaskRequest) -> IssueDetails:
-        return await _fetch_jira_task(request)
+        activity.logger.info(
+            "Fetching Jira task",
+            extra={"task_url": request.task_url, "timeout": request.timeout_seconds},
+        )
+        result = await _fetch_jira_task(request)
+        activity.logger.info(
+            "Fetched Jira task",
+            extra={"task_url": request.task_url, "issue_key": result.issue_key},
+        )
+        return result
 
     @activity.defn(name="read_issue")
     async def read_issue(self, request: IssueRequest) -> IssueDetails:
-        return await _read_issue(request)
+        activity.logger.info(
+            "Reading issue",
+            extra={
+                "issue_url": request.issue_url,
+                "provider": request.provider,
+                "timeout": request.timeout_seconds,
+            },
+        )
+        result = await _read_issue(request)
+        activity.logger.info(
+            "Read issue",
+            extra={
+                "issue_url": request.issue_url,
+                "provider": request.provider or "auto",
+                "issue_key": result.issue_key,
+            },
+        )
+        return result
 
     def activities(self) -> list:
         return [self.fetch_jira_task, self.read_issue]

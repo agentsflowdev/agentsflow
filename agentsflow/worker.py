@@ -13,6 +13,11 @@ from temporalio.worker import Worker
 from temporalio.contrib.pydantic import pydantic_data_converter
 from agentsflow.activities import AgentsFlowActivities
 from agentsflow.workflows import SDLCWorkflow
+from agentsflow.logging_utils import (
+    DEFAULT_LOG_LEVEL,
+    LOG_LEVEL_ENV,
+    configure_logging,
+)
 
 
 class WorkerSettings(BaseSettings):
@@ -23,6 +28,7 @@ class WorkerSettings(BaseSettings):
     task_queue: str = Field(default="agentsflow-sdlc", alias="SDLC_TASK_QUEUE")
     claude_binary: str | None = Field(default=None, alias="CLAUDE_CODE_BIN")
     claude_auto_approve: bool = Field(default=True, alias="CLAUDE_AUTO_APPROVE")
+    log_level: str = Field(default=DEFAULT_LOG_LEVEL, alias=LOG_LEVEL_ENV)
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -105,6 +111,7 @@ async def _run_worker(args: argparse.Namespace) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     defaults = WorkerSettings()
+    configure_logging(defaults.log_level)
     args = _parse_args(argv or sys.argv[1:], defaults)
     try:
         asyncio.run(_run_worker(args))

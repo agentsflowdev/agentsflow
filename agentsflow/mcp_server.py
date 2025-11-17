@@ -8,6 +8,9 @@ from typing import Any
 from fastmcp import Context, FastMCP
 
 from agentsflow.cli import CLISettings, _await_workflow_result, _start_workflow_handle
+from agentsflow.logging_utils import configure_logging
+
+configure_logging(CLISettings().log_level)
 
 mcp = FastMCP(
     "AgentsFlow SDLC",

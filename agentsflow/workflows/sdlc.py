@@ -87,6 +87,16 @@ class SDLCWorkflow:
 
     @workflow.run
     async def run(self, params: SDLCWorkflowInput) -> SDLCWorkflowOutput:  # noqa: D401
+        logger = workflow.logger
+        logger.info(
+            "SDLC workflow started",
+            extra={
+                "repository": params.repository,
+                "reference": params.reference,
+                "issue_url": params.issue_url,
+                "branch_name": params.branch_name,
+            },
+        )
         git_result = await workflow.execute_activity(
             "create_git_worktree",
             GitWorktreeRequest(
@@ -96,6 +106,14 @@ class SDLCWorkflow:
             retry_policy=RetryPolicy(maximum_attempts=3),
             result_type=GitWorktreeResult,
         )
+        logger.info(
+            "Git worktree created",
+            extra={
+                "repository_path": git_result.repository_path,
+                "worktree_path": git_result.worktree_path,
+                "reference": git_result.reference,
+            },
+        )
 
         issue_result = await workflow.execute_activity(
             "read_issue",
@@ -103,6 +121,13 @@ class SDLCWorkflow:
             start_to_close_timeout=timedelta(minutes=2),
             retry_policy=RetryPolicy(maximum_attempts=4),
             result_type=IssueDetails,
+        )
+        logger.info(
+            "Issue context loaded",
+            extra={
+                "issue_key": issue_result.issue_key,
+                "status": issue_result.status,
+            },
         )
 
         task_payload = _build_task_payload(issue_result)
@@ -184,6 +209,13 @@ class SDLCWorkflow:
                             non_retryable=True,
                         )
                     implementation_attempts += 1
+                    logger.info(
+                        "Implementation attempt",
+                        extra={
+                            "attempt": implementation_attempts,
+                            "feedback_items": len(coding_feedback),
+                        },
+                    )
                     coding_prompt = _render_claude_prompt(
                         stage="implementation",
                         task=task_payload,
@@ -202,10 +234,19 @@ class SDLCWorkflow:
                         ),
                         EvaluationOutput,
                     )
+                    logger.info(
+                        "Implementation evaluation",
+                        extra={
+                            "attempt": implementation_attempts,
+                            "task_implemented": evaluation.task_implemented,
+                            "tests_implemented": evaluation.automated_tests_implemented,
+                        },
+                    )
 
                     if evaluation.task_implemented:
                         coding_feedback = []
                         implementation_attempts = 0
+                        logger.info("Implementation stage satisfied")
                         break
 
                     coding_feedback = _build_feedback(
@@ -232,6 +273,13 @@ class SDLCWorkflow:
                                 non_retryable=True,
                             )
                         tests_attempts += 1
+                        logger.info(
+                            "Tests attempt",
+                            extra={
+                                "attempt": tests_attempts,
+                                "feedback_items": len(tests_feedback),
+                            },
+                        )
                         tests_prompt = _render_claude_prompt(
                             stage="tests",
                             task=task_payload,
@@ -251,10 +299,19 @@ class SDLCWorkflow:
                             ),
                             EvaluationOutput,
                         )
+                        logger.info(
+                            "Tests evaluation",
+                            extra={
+                                "attempt": tests_attempts,
+                                "task_implemented": evaluation.task_implemented,
+                                "tests_implemented": evaluation.automated_tests_implemented,
+                            },
+                        )
 
                         if evaluation.automated_tests_implemented:
                             tests_feedback = []
                             tests_attempts = 0
+                            logger.info("Automated tests satisfied")
                             break
 
                         tests_feedback = _build_feedback(
@@ -277,6 +334,13 @@ class SDLCWorkflow:
                             non_retryable=True,
                         )
                     review_attempts += 1
+                    logger.info(
+                        "Review attempt",
+                        extra={
+                            "attempt": review_attempts,
+                            "feedback_items": len(review_feedback),
+                        },
+                    )
                     review_prompt_text = _render_claude_prompt(
                         stage="review",
                         task=task_payload,
@@ -294,9 +358,18 @@ class SDLCWorkflow:
                         ),
                         ReviewOutput,
                     )
+                    logger.info(
+                        "Review evaluation",
+                        extra={
+                            "attempt": review_attempts,
+                            "approval": review.approval,
+                            "issues": len(review.issues),
+                        },
+                    )
 
                     if review.approval:
                         review_feedback = []
+                        logger.info("Review approved")
                         break
 
                     review_feedback = _build_review_feedback(review)
@@ -329,6 +402,9 @@ class SDLCWorkflow:
                     _render_test_summary_prompt(task_payload, claude_runs),
                     TestPlanOutput,
                 )
+                logger.info(
+                    "Test plan produced", extra={"cases": len(test_plan.test_cases)}
+                )
             else:
                 test_plan = None
 
@@ -343,6 +419,13 @@ class SDLCWorkflow:
                 ),
                 ReleasePlanOutput,
                 timeout_minutes=3,
+            )
+            logger.info(
+                "Release plan ready",
+                extra={
+                    "branch_name": release_plan.branch_name,
+                    "commit_message": release_plan.commit_message,
+                },
             )
             if release_plan is None:
                 raise ApplicationError(
@@ -377,9 +460,20 @@ class SDLCWorkflow:
                 retry_policy=RetryPolicy(maximum_attempts=1),
                 result_type=FinalizeGitResult,
             )
+            logger.info(
+                "Git changes finalised",
+                extra={
+                    "branch_name": finalize_result.branch_name,
+                    "commit_sha": finalize_result.commit_sha,
+                    "pushed": finalize_result.pushed,
+                },
+            )
         finally:
             closed_session_ids: set[str] = set()
             if coding_session_id and coding_session_id not in closed_session_ids:
+                logger.info(
+                    "Closing coding session", extra={"session_id": coding_session_id}
+                )
                 await workflow.execute_activity(
                     "close_claude_session",
                     coding_session_id,
@@ -388,6 +482,9 @@ class SDLCWorkflow:
                 )
                 closed_session_ids.add(coding_session_id)
             if review_session_id and review_session_id not in closed_session_ids:
+                logger.info(
+                    "Closing review session", extra={"session_id": review_session_id}
+                )
                 await workflow.execute_activity(
                     "close_claude_session",
                     review_session_id,
@@ -395,7 +492,7 @@ class SDLCWorkflow:
                     retry_policy=RetryPolicy(maximum_attempts=3),
                 )
 
-        return SDLCWorkflowOutput(
+        output = SDLCWorkflowOutput(
             worktree_path=git_result.worktree_path,
             repository_path=git_result.repository_path,
             reference=git_result.reference,
@@ -411,6 +508,15 @@ class SDLCWorkflow:
             committed_sha=finalize_result.commit_sha if finalize_result else None,
             commit_pushed=finalize_result.pushed if finalize_result else False,
         )
+        logger.info(
+            "SDLC workflow completed",
+            extra={
+                "branch": output.committed_branch,
+                "commit_sha": output.committed_sha,
+                "commit_pushed": output.commit_pushed,
+            },
+        )
+        return output
 
 
 def _build_task_payload(details: IssueDetails) -> JiraTaskPayload:
