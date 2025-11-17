@@ -154,7 +154,7 @@ You can invoke the same Temporal workflow through an [MCP](https://github.com/mo
 [FastMCP](https://github.com/jlowin/fastmcp). The server is defined in `agentsflow/mcp_server.py`
 and now exposes asynchronous control via two tools:
 
-1. `start_sdlc_workflow` – kicks off the workflow and returns the `workflow_id` / `run_id` so the client can poll later. Required params: `issue_url`, `repository_path`. Optional override: `branch_name`.
+1. `start_sdlc_workflow` – kicks off the workflow and returns the `workflow_id` / `run_id` so the client can poll later. Required params: `issue_url`, `repository_path`.
 2. `await_sdlc_workflow_result` – waits for the latest execution of the specified workflow to finish. Required param: `workflow_id`.
 
 All workflow settings are sourced from environment variables via `CLISettings`.

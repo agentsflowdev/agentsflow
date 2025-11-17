@@ -16,7 +16,7 @@ mcp = FastMCP(
     "AgentsFlow SDLC",
     instructions=(
         "AgentsFlow exposes the SDLC Temporal workflow over MCP. Start the workflow with "
-        "start_sdlc_workflow (issue_url + repository_path, optional branch) to receive the workflow_id/run_id, then call "
+        "start_sdlc_workflow (issue_url + repository_path) to receive the workflow_id/run_id, then call "
         "await_sdlc_workflow_result with the workflow_id when you're ready to fetch the SDLCWorkflowOutput. "
         "The repository_path argument must be the absolute filesystem path to the repo root (e.g., /Users/acme/src/app). "
         "Authentication, Temporal connection details, and overrides are read from environment variables or .env."
@@ -29,7 +29,6 @@ def _build_workflow_args(
     defaults: CLISettings,
     repository_path: str,
     issue_url: str,
-    branch_name: str | None,
 ) -> SimpleNamespace:
     return SimpleNamespace(
         repository=repository_path,
@@ -39,7 +38,7 @@ def _build_workflow_args(
         namespace=defaults.namespace,
         task_queue=defaults.task_queue,
         model=defaults.model,
-        branch_name=branch_name or defaults.branch_name,
+        branch_name=defaults.branch_name,
     )
 
 
@@ -47,7 +46,6 @@ async def _start_workflow_tool_impl(
     *,
     issue_url: str,
     repository_path: str,
-    branch_name: str | None,
     ctx: Context,
     remind_about_result: bool,
 ) -> dict[str, Any]:
@@ -56,7 +54,6 @@ async def _start_workflow_tool_impl(
         defaults=defaults,
         repository_path=repository_path,
         issue_url=issue_url,
-        branch_name=branch_name,
     )
 
     await ctx.info(
@@ -105,7 +102,6 @@ async def _await_workflow_tool_impl(
 async def start_sdlc_workflow(
     issue_url: str,
     repository_path: str,
-    branch_name: str | None = None,
     *,
     ctx: Context,
 ) -> dict[str, Any]:
@@ -117,7 +113,6 @@ async def start_sdlc_workflow(
     return await _start_workflow_tool_impl(
         issue_url=issue_url,
         repository_path=repository_path,
-        branch_name=branch_name,
         ctx=ctx,
         remind_about_result=True,
     )
