@@ -6,8 +6,8 @@ import argparse
 import asyncio
 import json
 import os
-import re
 import sys
+import uuid
 from typing import Any
 
 from pydantic import Field
@@ -34,7 +34,6 @@ class CLISettings(BaseSettings):
     address: str = Field(default="127.0.0.1:7233", alias="TEMPORAL_ADDRESS")
     namespace: str = Field(default="default", alias="TEMPORAL_NAMESPACE")
     task_queue: str = Field(default="agentsflow-sdlc", alias="SDLC_TASK_QUEUE")
-    workflow_id: str | None = Field(default=None, alias="SDLC_WORKFLOW_ID")
     model: str | None = Field(default=None, alias="SDLC_AGENT_MODEL")
     branch_name: str | None = Field(default=None, alias="SDLC_BRANCH_NAME")
     json_output: bool = Field(default=False, alias="SDLC_JSON_OUTPUT")
@@ -88,12 +87,6 @@ def _parse_args(argv: list[str], defaults: CLISettings) -> argparse.Namespace:
         help="Task queue that the SDLC worker listens on (env: SDLC_TASK_QUEUE).",
     )
     parser.add_argument(
-        "--workflow-id",
-        dest="workflow_id",
-        default=defaults.workflow_id,
-        help="Optional workflow ID (default derived from Jira URL) (env: SDLC_WORKFLOW_ID).",
-    )
-    parser.add_argument(
         "--model",
         default=defaults.model,
         help="Override chat model used by the SDLC agents (env: SDLC_AGENT_MODEL).",
@@ -120,10 +113,8 @@ def _parse_args(argv: list[str], defaults: CLISettings) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def _derive_workflow_id(issue_url: str) -> str:
-    slug = re.sub(r"[^a-z0-9]+", "-", issue_url.lower()).strip("-")
-    slug = slug or "sdlc"
-    return f"sdlc-{slug}"[:200]
+def _generate_workflow_id() -> str:
+    return f"sdlc-{uuid.uuid4().hex[:8]}"
 
 
 async def _create_temporal_client(address: str, namespace: str) -> Client:
@@ -154,12 +145,10 @@ async def _start_workflow_handle(
         branch_name=args.branch_name,
     )
 
-    workflow_id = args.workflow_id or _derive_workflow_id(args.issue_url)
-
     return await client.start_workflow(
         SDLCWorkflow.run,
         input_payload,
-        id=workflow_id,
+        id=_generate_workflow_id(),
         task_queue=args.task_queue,
     )
 
