@@ -1,0 +1,54 @@
+name: Lint and Type Check
+
+# Runs on every PR and push to main to ensure code quality gates are met
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  lint-and-type-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
+      # Python 3.12 is the minimum required version for this project
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Install all dependencies including dev tools (ruff, mypy, pyright)
+      - name: Install dependencies
+        run: uv sync --frozen --all-extras
+
+      # Gate 1: Verify dependency lock file is up to date
+      # This ensures uv.lock matches pyproject.toml and prevents CI failures
+      - name: Check lock file is up to date
+        run: uv lock --frozen
+
+      # Gate 2: Verify code formatting follows project standards
+      # Uses ruff's opinionated formatter (100 char line length)
+      - name: Run ruff format check
+        run: uv run ruff format --check .
+
+      # Gate 3: Run linting to catch common errors and code smells
+      # Checks for pycodestyle, pyflakes, isort, pep8-naming, and more
+      - name: Run ruff lint
+        run: uv run ruff check .
+
+      # Gate 4: Type check with mypy (strict mode)
+      # Ensures type safety and catches potential runtime errors
+      - name: Run mypy
+        run: uv run mypy agentsflow tests
+
+      # Gate 5: Type check with pyright (complementary to mypy)
+      # Provides additional type safety checks and better IDE integration
+      - name: Run pyright
+        run: uv run pyright agentsflow tests
