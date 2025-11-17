@@ -16,9 +16,9 @@ mcp = FastMCP(
     "AgentsFlow SDLC",
     instructions=(
         "AgentsFlow exposes the SDLC Temporal workflow over MCP. Start the workflow with "
-        "start_sdlc_workflow (issue_url + repository, optional branch) to receive the workflow_id/run_id, then call "
+        "start_sdlc_workflow (issue_url + repository_path, optional branch) to receive the workflow_id/run_id, then call "
         "await_sdlc_workflow_result with the workflow_id when you're ready to fetch the SDLCWorkflowOutput. "
-        "The repository argument must be the absolute filesystem path to the repo root (e.g., /Users/acme/src/app). "
+        "The repository_path argument must be the absolute filesystem path to the repo root (e.g., /Users/acme/src/app). "
         "Authentication, Temporal connection details, and overrides are read from environment variables or .env."
     ),
 )
@@ -27,12 +27,12 @@ mcp = FastMCP(
 def _build_workflow_args(
     *,
     defaults: CLISettings,
-    repository: str,
+    repository_path: str,
     issue_url: str,
     branch_name: str | None,
 ) -> SimpleNamespace:
     return SimpleNamespace(
-        repository=repository,
+        repository=repository_path,
         issue_url=issue_url,
         reference=defaults.reference,
         address=defaults.address,
@@ -46,7 +46,7 @@ def _build_workflow_args(
 async def _start_workflow_tool_impl(
     *,
     issue_url: str,
-    repository: str,
+    repository_path: str,
     branch_name: str | None,
     ctx: Context,
     remind_about_result: bool,
@@ -54,13 +54,13 @@ async def _start_workflow_tool_impl(
     defaults = CLISettings()
     args = _build_workflow_args(
         defaults=defaults,
-        repository=repository,
+        repository_path=repository_path,
         issue_url=issue_url,
         branch_name=branch_name,
     )
 
     await ctx.info(
-        f"Submitting SDLC workflow for issue {issue_url} against repository {repository}."
+        f"Submitting SDLC workflow for issue {issue_url} against repository path {repository_path}."
     )
 
     handle = await _start_workflow_handle(args)
@@ -73,7 +73,7 @@ async def _start_workflow_tool_impl(
         "namespace": args.namespace,
         "address": args.address,
         "issue_url": issue_url,
-        "repository": repository,
+        "repository_path": repository_path,
         "branch_name": args.branch_name,
     }
 
@@ -104,19 +104,19 @@ async def _await_workflow_tool_impl(
 @mcp.tool
 async def start_sdlc_workflow(
     issue_url: str,
-    repository: str,
+    repository_path: str,
     branch_name: str | None = None,
     *,
     ctx: Context,
 ) -> dict[str, Any]:
     """Kick off the workflow asynchronously and return the workflow identifiers.
 
-    Provide the repository as an absolute path on disk so the worker can access it.
+    Provide the repository_path as an absolute path on disk so the worker can access it.
     """
 
     return await _start_workflow_tool_impl(
         issue_url=issue_url,
-        repository=repository,
+        repository_path=repository_path,
         branch_name=branch_name,
         ctx=ctx,
         remind_about_result=True,
