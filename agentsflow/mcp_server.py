@@ -18,6 +18,7 @@ mcp = FastMCP(
         "AgentsFlow exposes the SDLC Temporal workflow over MCP. Start the workflow with "
         "start_sdlc_workflow (issue_url + repository, optional branch) to receive the workflow_id/run_id, then call "
         "await_sdlc_workflow_result with the workflow_id when you're ready to fetch the SDLCWorkflowOutput. "
+        "The repository argument must be the absolute filesystem path to the repo root (e.g., /Users/acme/src/app). "
         "Authentication, Temporal connection details, and overrides are read from environment variables or .env."
     ),
 )
@@ -108,7 +109,10 @@ async def start_sdlc_workflow(
     *,
     ctx: Context,
 ) -> dict[str, Any]:
-    """Kick off the workflow asynchronously and return the workflow identifiers."""
+    """Kick off the workflow asynchronously and return the workflow identifiers.
+
+    Provide the repository as an absolute path on disk so the worker can access it.
+    """
 
     return await _start_workflow_tool_impl(
         issue_url=issue_url,
