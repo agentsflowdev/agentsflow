@@ -40,6 +40,7 @@ __all__ = [
     "GitWorktreeResult",
     "FinalizeGitRequest",
     "FinalizeGitResult",
+    "create_git_worktree",
     "finalize_git_changes",
     "IssueDetails",
     "IssueRequest",
@@ -50,6 +51,7 @@ __all__ = [
     "ReleasePlanOutput",
     "JiraTaskDetails",
     "JiraTaskRequest",
+    "fetch_jira_task",
     "read_issue",
     "close_claude_session",
 ]

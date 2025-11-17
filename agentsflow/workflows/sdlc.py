@@ -20,6 +20,14 @@ from agentsflow.activities import (
     IssueDetails,
     IssueRequest,
 )
+from agentsflow.activities.agents import (
+    EvaluationOutput,
+    ImplementationOutput,
+    JiraTaskPayload,
+    ReleasePlanOutput,
+    ReviewOutput,
+    TestPlanOutput,
+)
 
 
 MAX_IMPLEMENTATION_ATTEMPTS = 4
@@ -32,14 +40,6 @@ class ClaudeRun(BaseModel):
     prompt: str
     message: str
     stop_reason: str | None = None
-from agentsflow.activities.agents import (
-    EvaluationOutput,
-    ImplementationOutput,
-    JiraTaskPayload,
-    ReleasePlanOutput,
-    ReviewOutput,
-    TestPlanOutput,
-)
 
 
 class SDLCWorkflowInput(BaseModel):

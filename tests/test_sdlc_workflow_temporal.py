@@ -1,4 +1,3 @@
-import asyncio
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from typing import Literal, Sequence
@@ -9,6 +8,7 @@ from temporalio import activity
 from temporalio.common import RetryPolicy
 from temporalio import client as temporal_client
 from temporalio.client import WorkflowFailureError
+from temporalio.contrib.pydantic import pydantic_data_converter
 from temporalio.exceptions import ApplicationError
 from temporalio.testing import WorkflowEnvironment
 from temporalio.worker import Worker
@@ -208,7 +208,11 @@ async def _run_workflow_with_mocks(
         shutdown_cb = env.shutdown
         task_queue = "test-sdlc"
     else:
-        client = await temporal_client.Client.connect(external_settings.address)
+        client = await temporal_client.Client.connect(
+            external_settings.address,
+            namespace=external_settings.namespace,
+            data_converter=pydantic_data_converter,
+        )
         task_queue = external_settings.task_queue
 
         async def shutdown_cb():
