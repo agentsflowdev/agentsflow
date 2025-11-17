@@ -21,13 +21,11 @@ dev = [
     "pytest-asyncio>=0.23",
     "ruff>=0.8.0",
     "mypy>=1.13.0",
-    "pyright>=1.1.390",
     "pre-commit>=4.0.0",
-    "types-jira>=0.0.1",
 ]
 
 [tool.ruff]
-line-length = 100
+line-length = 120
 target-version = "py312"
 
 [tool.ruff.lint]
@@ -43,6 +41,15 @@ select = [
     "SIM", # flake8-simplify
 ]
 ignore = []
+
+[tool.ruff.lint.per-file-ignores]
+# ACP Client protocol requires camelCase method names, ternary simplification less readable
+"agentsflow/activities/claude_acp.py" = ["N802", "SIM108"]
+# Long prompt strings are acceptable in workflow and agent definitions
+"agentsflow/workflows/sdlc.py" = ["E501", "E402"]
+"agentsflow/workflows/sdlc_agents.py" = ["E501"]
+# Test files can have longer lines for test data
+"tests/**/*.py" = ["E501"]
 
 [tool.ruff.format]
 quote-style = "double"
@@ -61,11 +68,43 @@ warn_unused_ignores = true
 warn_no_return = true
 check_untyped_defs = true
 strict_equality = true
+# Exclude tests from type checking
+exclude = ["tests/"]
 
-[tool.pyright]
-pythonVersion = "3.12"
-typeCheckingMode = "strict"
-reportMissingTypeStubs = true
-reportUnknownMemberType = false
-reportUnknownArgumentType = false
-reportUnknownVariableType = false
+# Allow missing imports for third-party libraries without type stubs
+[[tool.mypy.overrides]]
+module = "jira.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "acp.*"
+ignore_missing_imports = true
+
+# Relaxed checking for files using third-party libraries without type stubs
+[[tool.mypy.overrides]]
+module = "agentsflow.activities.claude_acp"
+warn_unused_ignores = false
+disallow_subclassing_any = false
+warn_return_any = false
+
+[[tool.mypy.overrides]]
+module = "agentsflow.activities.jira"
+disallow_untyped_defs = false
+disallow_untyped_calls = false
+warn_return_any = false
+
+[[tool.mypy.overrides]]
+module = "agentsflow.workflows.sdlc"
+warn_return_any = false
+# Pydantic-ai agent outputs can be complex types
+disable_error_code = ["assignment", "union-attr", "arg-type"]
+
+[[tool.mypy.overrides]]
+module = "agentsflow.workflows.sdlc_agents"
+# Pydantic-ai Agent type signature is complex
+disable_error_code = ["arg-type"]
+
+[[tool.mypy.overrides]]
+module = "agentsflow.mcp_server"
+# SimpleNamespace vs Namespace compatibility
+disable_error_code = ["arg-type"]

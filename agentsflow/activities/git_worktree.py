@@ -7,10 +7,10 @@ can reuse the same behaviour within Temporal workflows.
 from __future__ import annotations
 
 import asyncio
-from dataclasses import dataclass
-from pathlib import Path
 import shutil
 import tempfile
+from dataclasses import dataclass
+from pathlib import Path
 
 import git
 from git.exc import GitCommandError, InvalidGitRepositoryError, NoSuchPathError
@@ -106,7 +106,8 @@ async def create_git_worktree(request: GitWorktreeRequest) -> GitWorktreeResult:
         result = await asyncio.to_thread(_create_git_worktree, request)
     except Exception:
         activity.logger.exception(
-            "Failed to create git worktree", extra={"repository": request.repository, "reference": reference}
+            "Failed to create git worktree",
+            extra={"repository": request.repository, "reference": reference},
         )
         raise
 

@@ -3,16 +3,16 @@
 from __future__ import annotations
 
 import asyncio
-from dataclasses import dataclass
 import re
+from collections.abc import Iterable, Sequence
 from contextlib import suppress
-from typing import Any, Iterable, Sequence
-from urllib.parse import parse_qs, urlparse
+from dataclasses import dataclass
+from typing import Any
+from urllib.parse import ParseResult, parse_qs, urlparse
 
 from jira import JIRA
 from jira.exceptions import JIRAError
 from temporalio import activity
-
 
 ISSUE_KEY_RE = re.compile(r"([A-Z][A-Z0-9_]+-\d+)", re.IGNORECASE)
 STOP_SEGMENTS = {
@@ -68,7 +68,7 @@ def _iter_url_values(path: str) -> Iterable[str]:
     return [segment for segment in path.split("/") if segment]
 
 
-def _candidate_base_urls(parsed_url, issue_key: str) -> list[str]:
+def _candidate_base_urls(parsed_url: ParseResult, issue_key: str) -> list[str]:
     base = f"{parsed_url.scheme}://{parsed_url.netloc}".rstrip("/")
     candidates = [base]
     segments = [segment for segment in _iter_url_values(parsed_url.path) if segment]

@@ -79,9 +79,7 @@ def _finalize_git_changes(request: FinalizeGitRequest) -> FinalizeGitResult:
             push_result = remote.push(refspec=f"{branch_name}:{branch_name}")
             for info in push_result:
                 if info.flags & info.ERROR:
-                    raise RuntimeError(
-                        f"Failed to push branch '{branch_name}' to '{request.remote}': {info.summary}"
-                    )
+                    raise RuntimeError(f"Failed to push branch '{branch_name}' to '{request.remote}': {info.summary}")
             pushed = True
 
         activity.logger.info(
@@ -98,7 +96,11 @@ def _finalize_git_changes(request: FinalizeGitRequest) -> FinalizeGitResult:
         detail = exc.stderr or exc.stdout or str(exc)
         activity.logger.exception(
             "Git command failed during finalisation",
-            extra={"worktree_path": str(worktree_path), "branch_name": branch_name, "detail": detail.strip()},
+            extra={
+                "worktree_path": str(worktree_path),
+                "branch_name": branch_name,
+                "detail": detail.strip(),
+            },
         )
         raise RuntimeError(f"Git command failed while finalising worktree: {detail.strip()}") from exc
 

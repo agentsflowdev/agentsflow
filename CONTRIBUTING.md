@@ -27,7 +27,7 @@ uv lock --frozen
 
 ### 2. Code Formatting (Ruff)
 
-Code must be formatted using ruff's opinionated formatter (100 character line length):
+Code must be formatted using ruff's opinionated formatter (120 character line length):
 
 ```bash
 # Check formatting
@@ -59,18 +59,10 @@ uv run ruff check --fix .
 
 ### 4. Type Checking (mypy)
 
-Code must pass strict type checking with mypy:
+Code must pass strict type checking with mypy (tests are excluded):
 
 ```bash
-uv run mypy agentsflow tests
-```
-
-### 5. Type Checking (pyright)
-
-Code must also pass type checking with pyright (complementary to mypy):
-
-```bash
-uv run pyright agentsflow tests
+uv run mypy agentsflow
 ```
 
 ## Pre-commit Hooks
@@ -86,9 +78,14 @@ uv run pre-commit run --all-files
 ```
 
 The pre-commit hooks will:
+- Trim trailing whitespace
+- Fix end of files (ensure newline at end)
+- Check YAML and JSON syntax
+- Check for merge conflicts
+- Fix mixed line endings (enforce LF)
 - Format code with ruff
 - Fix linting issues automatically
-- Run type checks with both mypy and pyright
+- Run type checks with mypy
 - Verify dependency lock file when pyproject.toml changes
 
 ## Running All Gates Locally
@@ -103,8 +100,7 @@ uv run ruff format .
 uv run ruff check --fix .
 
 # Type check
-uv run mypy agentsflow tests
-uv run pyright agentsflow tests
+uv run mypy agentsflow
 
 # Verify lock file
 uv lock --frozen

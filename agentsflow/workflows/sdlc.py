@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import timedelta
-from typing import Literal, Sequence
+from typing import Literal
 
 from pydantic import BaseModel, Field
 from temporalio import workflow
@@ -16,10 +17,9 @@ from agentsflow.activities import (
     FinalizeGitResult,
     GitWorktreeRequest,
     GitWorktreeResult,
-    JiraTaskRequest,
     JiraTaskDetails,
+    JiraTaskRequest,
 )
-
 
 MAX_IMPLEMENTATION_ATTEMPTS = 4
 MAX_TEST_ATTEMPTS = 3
@@ -31,6 +31,8 @@ class ClaudeRun(BaseModel):
     prompt: str
     message: str
     stop_reason: str | None = None
+
+
 from agentsflow.workflows.sdlc_agents import (
     EVALUATION_AGENT,
     IMPLEMENTATION_AGENT,
@@ -49,16 +51,10 @@ from agentsflow.workflows.sdlc_agents import (
 class SDLCWorkflowInput(BaseModel):
     """Parameters required to kick off the SDLC workflow."""
 
-    repository: str = Field(
-        ..., description="Local path or remote URL to the source repository."
-    )
-    reference: str | None = Field(
-        default=None, description="Optional git reference to base the worktree on."
-    )
+    repository: str = Field(..., description="Local path or remote URL to the source repository.")
+    reference: str | None = Field(default=None, description="Optional git reference to base the worktree on.")
     jira_task_url: str = Field(..., description="URL pointing to the Jira issue.")
-    jira_email: str = Field(
-        ..., description="Jira account email for API authentication."
-    )
+    jira_email: str = Field(..., description="Jira account email for API authentication.")
     jira_api_token: str = Field(..., description="Jira API token or password.")
     branch_name: str | None = Field(
         default=None,
@@ -93,9 +89,7 @@ class SDLCWorkflow:
     async def run(self, params: SDLCWorkflowInput) -> SDLCWorkflowOutput:  # noqa: D401
         git_result = await workflow.execute_activity(
             "create_git_worktree",
-            GitWorktreeRequest(
-                repository=params.repository, reference=params.reference
-            ),
+            GitWorktreeRequest(repository=params.repository, reference=params.reference),
             start_to_close_timeout=timedelta(minutes=4),
             retry_policy=RetryPolicy(maximum_attempts=3),
             result_type=GitWorktreeResult,
@@ -170,9 +164,7 @@ class SDLCWorkflow:
                 # Implementation loop
                 while True:
                     if implementation_attempts >= MAX_IMPLEMENTATION_ATTEMPTS:
-                        raise RuntimeError(
-                            "Exceeded implementation attempts without satisfying task requirements."
-                        )
+                        raise RuntimeError("Exceeded implementation attempts without satisfying task requirements.")
                     implementation_attempts += 1
                     coding_prompt = _render_claude_prompt(
                         stage="implementation",
@@ -180,9 +172,7 @@ class SDLCWorkflow:
                         workspace_dir=git_result.worktree_path,
                         feedback=coding_feedback,
                     )
-                    coding_response = await _invoke_claude(
-                        "implementation", coding_prompt, session_kind="coding"
-                    )
+                    coding_response = await _invoke_claude("implementation", coding_prompt, session_kind="coding")
                     evaluation = (
                         await EVALUATION_AGENT.run(
                             _render_evaluation_prompt(
@@ -204,9 +194,7 @@ class SDLCWorkflow:
                     )
 
                 if evaluation is None:
-                    raise RuntimeError(
-                        "Evaluation did not complete during implementation stage."
-                    )
+                    raise RuntimeError("Evaluation did not complete during implementation stage.")
 
                 # Tests loop (if needed)
                 if not evaluation.automated_tests_implemented:
@@ -216,9 +204,7 @@ class SDLCWorkflow:
                     )
                     while True:
                         if tests_attempts >= MAX_TEST_ATTEMPTS:
-                            raise RuntimeError(
-                                "Exceeded automated testing attempts without success."
-                            )
+                            raise RuntimeError("Exceeded automated testing attempts without success.")
                         tests_attempts += 1
                         tests_prompt = _render_claude_prompt(
                             stage="tests",
@@ -226,9 +212,7 @@ class SDLCWorkflow:
                             workspace_dir=git_result.worktree_path,
                             feedback=tests_feedback,
                         )
-                        test_response = await _invoke_claude(
-                            "tests", tests_prompt, session_kind="coding"
-                        )
+                        test_response = await _invoke_claude("tests", tests_prompt, session_kind="coding")
 
                         evaluation = (
                             await EVALUATION_AGENT.run(
@@ -268,16 +252,10 @@ class SDLCWorkflow:
                         workspace_dir=git_result.worktree_path,
                         feedback=review_feedback,
                     )
-                    review_response = await _invoke_claude(
-                        "review", review_prompt_text, session_kind="review"
-                    )
+                    review_response = await _invoke_claude("review", review_prompt_text, session_kind="review")
 
                     review = (
-                        await REVIEW_AGENT.run(
-                            _render_review_evaluation_prompt(
-                                task_payload, review_response.message
-                            )
-                        )
+                        await REVIEW_AGENT.run(_render_review_evaluation_prompt(task_payload, review_response.message))
                     ).output
 
                     if review.approval:
@@ -295,19 +273,13 @@ class SDLCWorkflow:
                 raise RuntimeError("Review stage did not produce a result.")
 
             implementation = (
-                await IMPLEMENTATION_AGENT.run(
-                    _render_implementation_summary_prompt(task_payload, claude_runs)
-                )
+                await IMPLEMENTATION_AGENT.run(_render_implementation_summary_prompt(task_payload, claude_runs))
             ).output
             if implementation is None:
                 raise RuntimeError("Implementation summary could not be generated.")
 
             if evaluation.automated_tests_implemented:
-                test_plan = (
-                    await TESTS_AGENT.run(
-                        _render_test_summary_prompt(task_payload, claude_runs)
-                    )
-                ).output
+                test_plan = (await TESTS_AGENT.run(_render_test_summary_prompt(task_payload, claude_runs))).output
             else:
                 test_plan = None
 
@@ -406,9 +378,7 @@ def _render_claude_prompt(
         f"Workspace directory: {workspace_dir or 'unknown'}",
     ]
     if feedback:
-        base.append(
-            "Outstanding feedback:\n" + "\n".join(f"- {item}" for item in feedback)
-        )
+        base.append("Outstanding feedback:\n" + "\n".join(f"- {item}" for item in feedback))
 
     if stage == "implementation":
         base.append(
@@ -464,35 +434,27 @@ def _render_review_evaluation_prompt(task: JiraTaskPayload, transcript: str) -> 
     return "\n\n".join(parts)
 
 
-def _render_implementation_summary_prompt(
-    task: JiraTaskPayload, runs: Sequence[ClaudeRun]
-) -> str:
+def _render_implementation_summary_prompt(task: JiraTaskPayload, runs: Sequence[ClaudeRun]) -> str:
     relevant = [run for run in runs if run.stage in {"implementation", "tests"}]
-    transcript = "\n\n".join(
-        f"[{run.stage}] {run.message.strip()}" for run in relevant if run.message
-    )
+    transcript = "\n\n".join(f"[{run.stage}] {run.message.strip()}" for run in relevant if run.message)
     parts = [
         _format_task_section(task),
         "Claude Code ACP sessions:",
         transcript or "(no transcript)",
-        "Return an ImplementationOutput capturing the implemented behaviour, key steps, touched files, and testing considerations."
+        "Return an ImplementationOutput capturing the implemented behaviour, key steps, touched files, and testing considerations.",
     ]
     return "\n\n".join(parts)
 
 
-def _render_test_summary_prompt(
-    task: JiraTaskPayload, runs: Sequence[ClaudeRun]
-) -> str:
+def _render_test_summary_prompt(task: JiraTaskPayload, runs: Sequence[ClaudeRun]) -> str:
     transcript = "\n\n".join(
-        f"[{run.stage}] {run.message.strip()}"
-        for run in runs
-        if run.stage == "tests" and run.message
+        f"[{run.stage}] {run.message.strip()}" for run in runs if run.stage == "tests" and run.message
     )
     parts = [
         _format_task_section(task),
         "Claude Code ACP testing transcripts:",
         transcript or "(no dedicated testing transcript)",
-        "Summarise the automated tests that now exist and respond with TestPlanOutput."
+        "Summarise the automated tests that now exist and respond with TestPlanOutput.",
     ]
     return "\n\n".join(parts)
 
@@ -557,9 +519,7 @@ def _format_implementation_section(implementation: ImplementationOutput) -> str:
         f"Implementation summary: {implementation.summary}",
         _format_list_section("Key steps", implementation.key_steps),
         _format_list_section("Files to change", implementation.files_to_change),
-        _format_list_section(
-            "Testing considerations", implementation.testing_considerations
-        ),
+        _format_list_section("Testing considerations", implementation.testing_considerations),
     ]
     return "\n".join(lines)
 

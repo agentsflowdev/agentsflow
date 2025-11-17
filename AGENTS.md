@@ -21,4 +21,3 @@ Recent history favors short, imperative summaries (`Add branch override flag`), 
 
 ## Security & Configuration Tips
 Never commit `.env`; instead export secrets such as `JIRA_API_TOKEN`, `OPENAI_API_KEY`, `CLAUDE_CODE_BIN`, and repo-specific tokens locally. Scrub logs and CLI output before sharing because activity traces often include issue descriptions, file paths, and credentials, and prefer isolated worktrees created by `create_git_worktree` when testing untrusted changes.
-

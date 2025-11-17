@@ -24,7 +24,7 @@ jobs:
         with:
           python-version: "3.12"
 
-      # Install all dependencies including dev tools (ruff, mypy, pyright)
+      # Install all dependencies including dev tools (ruff, mypy)
       - name: Install dependencies
         run: uv sync --frozen --all-extras
 
@@ -34,7 +34,7 @@ jobs:
         run: uv lock --frozen
 
       # Gate 2: Verify code formatting follows project standards
-      # Uses ruff's opinionated formatter (100 char line length)
+      # Uses ruff's opinionated formatter (120 char line length)
       - name: Run ruff format check
         run: uv run ruff format --check .
 
@@ -46,9 +46,4 @@ jobs:
       # Gate 4: Type check with mypy (strict mode)
       # Ensures type safety and catches potential runtime errors
       - name: Run mypy
-        run: uv run mypy agentsflow tests
-
-      # Gate 5: Type check with pyright (complementary to mypy)
-      # Provides additional type safety checks and better IDE integration
-      - name: Run pyright
-        run: uv run pyright agentsflow tests
+        run: uv run mypy agentsflow

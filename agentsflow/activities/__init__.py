@@ -9,20 +9,27 @@ from temporalio import activity
 from .claude_acp import (
     ClaudeACPRequest,
     ClaudeACPResponse,
-    close_session as _close_claude_session,
     run_claude_code,
+)
+from .claude_acp import (
+    close_session as _close_claude_session,
 )
 from .git_finalize import (
     FinalizeGitRequest,
     FinalizeGitResult,
+)
+from .git_finalize import (
     finalize_git_changes as _finalize_git_changes,
 )
 from .git_worktree import (
     GitWorktreeRequest,
     GitWorktreeResult,
+)
+from .git_worktree import (
     create_git_worktree as _create_git_worktree,
 )
-from .jira import JiraTaskDetails, JiraTaskRequest, fetch_jira_task as _fetch_jira_task
+from .jira import JiraTaskDetails, JiraTaskRequest
+from .jira import fetch_jira_task as _fetch_jira_task
 
 __all__ = [
     "AgentsFlowActivities",

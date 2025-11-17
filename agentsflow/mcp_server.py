@@ -51,9 +51,7 @@ async def run_sdlc_workflow(
         branch_name=effective_branch,
     )
 
-    await ctx.info(
-        f"Starting SDLC workflow for Jira issue {jira_url} against repository {repository}."
-    )
+    await ctx.info(f"Starting SDLC workflow for Jira issue {jira_url} against repository {repository}.")
 
     result = await _run_workflow(args)
 

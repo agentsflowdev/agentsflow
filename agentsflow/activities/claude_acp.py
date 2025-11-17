@@ -6,14 +6,14 @@ import asyncio
 import contextlib
 import os
 import shutil
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable
 
 from acp import (
+    PROTOCOL_VERSION,
     Client,
     ClientSideConnection,
-    PROTOCOL_VERSION,
     RequestError,
     text_block,
 )
@@ -41,9 +41,9 @@ from acp.schema import (
     RequestPermissionResponse,
     ResourceContentBlock,
     SessionNotification,
-    TextContentBlock,
     TerminalOutputRequest,
     TerminalOutputResponse,
+    TextContentBlock,
     WaitForTerminalExitRequest,
     WaitForTerminalExitResponse,
     WriteTextFileRequest,
@@ -72,14 +72,12 @@ class ClaudeACPResponse:
 class _ClaudeSession:
     process: asyncio.subprocess.Process
     connection: ClientSideConnection
-    client: "_LangflowClaudeClient"
+    client: _LangflowClaudeClient
     session_id: str
 
     async def send_prompt(self, prompt: str) -> tuple[str, PromptResponse]:
         self.client.start_prompt()
-        response = await self.connection.prompt(
-            PromptRequest(sessionId=self.session_id, prompt=[text_block(prompt)])
-        )
+        response = await self.connection.prompt(PromptRequest(sessionId=self.session_id, prompt=[text_block(prompt)]))
         message = await self.client.consume_message()
         return message, response
 

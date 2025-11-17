@@ -7,11 +7,14 @@ import asyncio
 import sys
 
 from pydantic import Field
+from pydantic_ai.durable_exec.temporal import AgentPlugin, PydanticAIPlugin
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from temporalio.client import Client
-from temporalio.worker import Worker
 from temporalio.contrib.pydantic import pydantic_data_converter
-from pydantic_ai.durable_exec.temporal import AgentPlugin, PydanticAIPlugin
+from temporalio.worker import Worker
+
+from agentsflow.activities import AgentsFlowActivities
+from agentsflow.workflows import SDLCWorkflow
 
 # Temporal LLM agent instances shared with the worker plugins
 from agentsflow.workflows.sdlc_agents import (
@@ -21,8 +24,6 @@ from agentsflow.workflows.sdlc_agents import (
     REVIEW_AGENT,
     TESTS_AGENT,
 )
-from agentsflow.activities import AgentsFlowActivities
-from agentsflow.workflows import SDLCWorkflow
 
 
 class WorkerSettings(BaseSettings):

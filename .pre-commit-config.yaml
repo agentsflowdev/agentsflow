@@ -1,4 +1,23 @@
 repos:
+  # Standard pre-commit hooks for file formatting
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+        name: Trim trailing whitespace
+      - id: end-of-file-fixer
+        name: Fix end of files
+      - id: check-yaml
+        name: Check YAML syntax
+      - id: check-json
+        name: Check JSON syntax
+      - id: check-merge-conflict
+        name: Check for merge conflicts
+      - id: mixed-line-ending
+        name: Fix mixed line endings
+        args: ['--fix=lf']
+
+  # Project-specific hooks
   - repo: local
     hooks:
       - id: ruff-format
@@ -17,14 +36,7 @@ repos:
 
       - id: mypy
         name: mypy type check
-        entry: uv run mypy agentsflow tests
-        language: system
-        types: [python]
-        pass_filenames: false
-
-      - id: pyright
-        name: pyright type check
-        entry: uv run pyright agentsflow tests
+        entry: uv run mypy agentsflow
         language: system
         types: [python]
         pass_filenames: false

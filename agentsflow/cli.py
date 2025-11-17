@@ -10,8 +10,8 @@ import re
 import sys
 
 from pydantic import Field
-from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic_ai.durable_exec.temporal import PydanticAIPlugin
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from temporalio.client import Client
 from temporalio.contrib.pydantic import pydantic_data_converter
 

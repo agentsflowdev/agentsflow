@@ -1,12 +1,13 @@
-import asyncio
 from collections import defaultdict, deque
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Literal, Sequence
+from typing import Literal
 from uuid import uuid4
 
 import pytest
 from temporalio import activity
 from temporalio.common import RetryPolicy
+from temporalio.exceptions import FailureError
 from temporalio.testing import WorkflowEnvironment
 from temporalio.worker import Worker
 
@@ -20,8 +21,6 @@ from agentsflow.activities import (
     JiraTaskDetails,
     JiraTaskRequest,
 )
-from temporalio.exceptions import FailureError
-
 from agentsflow.workflows import ClaudeRun, SDLCWorkflow, SDLCWorkflowInput
 from agentsflow.workflows.sdlc_agents import (
     EVALUATION_AGENT,
@@ -238,11 +237,23 @@ async def test_workflow_retries_claude_until_checks_pass(monkeypatch):
 
     evaluation_agent = FakeEvaluationAgent(
         implementation_outputs=[
-            EvaluationOutput(task_implemented=False, automated_tests_implemented=False, reasoning="Null inputs still fail"),
-            EvaluationOutput(task_implemented=True, automated_tests_implemented=False, reasoning="Implementation complete; tests missing"),
+            EvaluationOutput(
+                task_implemented=False,
+                automated_tests_implemented=False,
+                reasoning="Null inputs still fail",
+            ),
+            EvaluationOutput(
+                task_implemented=True,
+                automated_tests_implemented=False,
+                reasoning="Implementation complete; tests missing",
+            ),
         ],
         test_outputs=[
-            EvaluationOutput(task_implemented=True, automated_tests_implemented=False, reasoning="Tests still fail"),
+            EvaluationOutput(
+                task_implemented=True,
+                automated_tests_implemented=False,
+                reasoning="Tests still fail",
+            ),
             EvaluationOutput(task_implemented=True, automated_tests_implemented=True, reasoning="All tests pass"),
         ],
     )
@@ -271,7 +282,7 @@ async def test_workflow_retries_claude_until_checks_pass(monkeypatch):
                 files_to_change=["src/toggle.py"],
                 testing_considerations=["pytest::tests/test_toggle.py"],
             )
-    )
+        )
 
     async def test_summary(prompt, **_kwargs):
         return FakeAgentResult(
@@ -365,8 +376,16 @@ async def test_workflow_fails_when_review_never_approves(monkeypatch):
 
     evaluation_agent = FakeEvaluationAgent(
         implementation_outputs=[
-            EvaluationOutput(task_implemented=False, automated_tests_implemented=False, reasoning="Validation missing"),
-            EvaluationOutput(task_implemented=True, automated_tests_implemented=True, reasoning="Implementation done"),
+            EvaluationOutput(
+                task_implemented=False,
+                automated_tests_implemented=False,
+                reasoning="Validation missing",
+            ),
+            EvaluationOutput(
+                task_implemented=True,
+                automated_tests_implemented=True,
+                reasoning="Implementation done",
+            ),
         ],
         test_outputs=[
             EvaluationOutput(task_implemented=True, automated_tests_implemented=True, reasoning="Tests pass"),
