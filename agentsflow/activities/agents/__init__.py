@@ -65,31 +65,108 @@ class AgentActivities:
                 "prompt_chars": len(req.prompt),
             },
         )
-        return await _run_claude_code(req)
+        response = await _run_claude_code(req)
+        activity.logger.info(
+            "Claude ACP activity completed",
+            extra={
+                "session_id": response.session_id,
+                "prompt_chars": len(req.prompt),
+                "message_chars": len(response.message or ""),
+                "stop_reason": response.stop_reason,
+            },
+        )
+        return response
 
     @activity.defn(name="close_claude_session")
     async def close_claude_session(self, session_id: str) -> None:
+        activity.logger.info(
+            "Closing Claude ACP session", extra={"session_id": session_id}
+        )
         await close_session(session_id)
+        activity.logger.debug(
+            "Closed Claude ACP session", extra={"session_id": session_id}
+        )
 
     @activity.defn(name="run_implementation_agent")
     async def run_implementation_agent(self, prompt: str) -> ImplementationOutput:
-        return await _run_implementation_agent(prompt)
+        activity.logger.info(
+            "Running implementation agent",
+            extra={"prompt_chars": len(prompt)},
+        )
+        result = await _run_implementation_agent(prompt)
+        activity.logger.info(
+            "Implementation agent completed",
+            extra={
+                "prompt_chars": len(prompt),
+                "key_steps": len(result.key_steps),
+                "files_to_change": len(result.files_to_change),
+            },
+        )
+        return result
 
     @activity.defn(name="run_evaluation_agent")
     async def run_evaluation_agent(self, prompt: str) -> EvaluationOutput:
-        return await _run_evaluation_agent(prompt)
+        activity.logger.info(
+            "Running evaluation agent", extra={"prompt_chars": len(prompt)}
+        )
+        result = await _run_evaluation_agent(prompt)
+        activity.logger.info(
+            "Evaluation agent completed",
+            extra={
+                "prompt_chars": len(prompt),
+                "task_implemented": result.task_implemented,
+                "automated_tests_implemented": result.automated_tests_implemented,
+            },
+        )
+        return result
 
     @activity.defn(name="run_tests_agent")
     async def run_tests_agent(self, prompt: str) -> TestPlanOutput:
-        return await _run_tests_agent(prompt)
+        activity.logger.info(
+            "Running tests agent", extra={"prompt_chars": len(prompt)}
+        )
+        result = await _run_tests_agent(prompt)
+        activity.logger.info(
+            "Tests agent completed",
+            extra={
+                "prompt_chars": len(prompt),
+                "test_cases": len(result.test_cases),
+                "tooling_notes": len(result.tooling_notes),
+            },
+        )
+        return result
 
     @activity.defn(name="run_review_agent")
     async def run_review_agent(self, prompt: str) -> ReviewOutput:
-        return await _run_review_agent(prompt)
+        activity.logger.info(
+            "Running review agent", extra={"prompt_chars": len(prompt)}
+        )
+        result = await _run_review_agent(prompt)
+        activity.logger.info(
+            "Review agent completed",
+            extra={
+                "prompt_chars": len(prompt),
+                "approval": result.approval,
+                "issues": len(result.issues),
+                "recommendations": len(result.recommendations),
+            },
+        )
+        return result
 
     @activity.defn(name="run_release_agent")
     async def run_release_agent(self, prompt: str) -> ReleasePlanOutput:
-        return await _run_release_agent(prompt)
+        activity.logger.info(
+            "Running release agent", extra={"prompt_chars": len(prompt)}
+        )
+        result = await _run_release_agent(prompt)
+        activity.logger.info(
+            "Release agent completed",
+            extra={
+                "branch_name": result.branch_name,
+                "commit_message": result.commit_message,
+            },
+        )
+        return result
 
     def activities(self) -> list:
         return [

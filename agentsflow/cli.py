@@ -17,6 +17,11 @@ from temporalio.client import Client, WorkflowHandle
 from temporalio.contrib.pydantic import pydantic_data_converter
 
 from agentsflow.workflows import SDLCWorkflow, SDLCWorkflowInput, SDLCWorkflowOutput
+from agentsflow.logging_utils import (
+    DEFAULT_LOG_LEVEL,
+    LOG_LEVEL_ENV,
+    configure_logging,
+)
 
 
 class CLISettings(BaseSettings):
@@ -33,6 +38,7 @@ class CLISettings(BaseSettings):
     model: str | None = Field(default=None, alias="SDLC_AGENT_MODEL")
     branch_name: str | None = Field(default=None, alias="SDLC_BRANCH_NAME")
     json_output: bool = Field(default=False, alias="SDLC_JSON_OUTPUT")
+    log_level: str = Field(default=DEFAULT_LOG_LEVEL, alias=LOG_LEVEL_ENV)
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -192,6 +198,7 @@ def _print_result(result: SDLCWorkflowOutput, as_json: bool) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     defaults = CLISettings()
+    configure_logging(defaults.log_level)
     args = _parse_args(argv or sys.argv[1:], defaults)
     try:
         result = asyncio.run(_run_workflow(args))
