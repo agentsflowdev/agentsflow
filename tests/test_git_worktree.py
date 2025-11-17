@@ -6,7 +6,7 @@ from pathlib import Path
 import git
 import pytest
 
-from agentsflow.activities.git_worktree import GitWorktreeRequest, create_git_worktree
+from agentsflow.activities.git import GitWorktreeRequest, create_git_worktree
 
 
 def _init_repo(repo_path: Path) -> git.Repo:

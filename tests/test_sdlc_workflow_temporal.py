@@ -7,6 +7,9 @@ from uuid import uuid4
 import pytest
 from temporalio import activity
 from temporalio.common import RetryPolicy
+from temporalio import client as temporal_client
+from temporalio.client import WorkflowFailureError
+from temporalio.exceptions import ApplicationError
 from temporalio.testing import WorkflowEnvironment
 from temporalio.worker import Worker
 
@@ -17,24 +20,26 @@ from agentsflow.activities import (
     FinalizeGitResult,
     GitWorktreeRequest,
     GitWorktreeResult,
-    JiraTaskDetails,
-    JiraTaskRequest,
+    IssueDetails,
 )
-from temporalio.exceptions import FailureError
 
 from agentsflow.workflows import ClaudeRun, SDLCWorkflow, SDLCWorkflowInput
-from agentsflow.workflows.sdlc_agents import (
-    EVALUATION_AGENT,
-    IMPLEMENTATION_AGENT,
-    RELEASE_AGENT,
-    REVIEW_AGENT,
-    TESTS_AGENT,
+from agentsflow.activities.agents.models import (
     EvaluationOutput,
     ImplementationOutput,
     ReleasePlanOutput,
     ReviewOutput,
     TestPlanOutput,
 )
+from temporal_settings import TemporalTestSettings
+
+
+@pytest.fixture(autouse=True)
+def fast_attempt_limits(monkeypatch):
+    """Keep workflow retry loops tiny so Temporal tests finish quickly."""
+    monkeypatch.setattr("agentsflow.workflows.sdlc.MAX_IMPLEMENTATION_ATTEMPTS", 2)
+    monkeypatch.setattr("agentsflow.workflows.sdlc.MAX_TEST_ATTEMPTS", 2)
+    monkeypatch.setattr("agentsflow.workflows.sdlc.MAX_REVIEW_ATTEMPTS", 2)
 
 
 class FakeAgentResult:
@@ -48,7 +53,7 @@ class ScenarioState:
     test_messages: Sequence[str]
     review_messages: Sequence[str]
     git_result: GitWorktreeResult
-    jira_result: JiraTaskDetails
+    issue_result: IssueDetails
     claude_calls: list[ClaudeRun] = field(default_factory=list)
     closed_sessions: list[str] = field(default_factory=list)
     finalize_requests: list[FinalizeGitRequest] = field(default_factory=list)
@@ -144,14 +149,15 @@ async def _run_workflow_with_mocks(
     release_agent,
 ):
     mock_claude = MockClaude(scenario)
+    external_settings = TemporalTestSettings.from_env()
 
     @activity.defn(name="create_git_worktree")
     async def create_git_worktree_activity(request: GitWorktreeRequest) -> GitWorktreeResult:
         return scenario.git_result
 
-    @activity.defn(name="fetch_jira_task")
-    async def fetch_jira_task_activity(request: JiraTaskRequest) -> JiraTaskDetails:
-        return scenario.jira_result
+    @activity.defn(name="read_issue")
+    async def read_issue_activity(_request) -> IssueDetails:
+        return scenario.issue_result
 
     @activity.defn(name="claude_code_acp")
     async def claude_code_acp_activity(request: ClaudeACPRequest) -> ClaudeACPResponse:
@@ -172,37 +178,77 @@ async def _run_workflow_with_mocks(
     async def close_claude_session_activity(session_id: str) -> None:
         scenario.closed_sessions.append(session_id)
 
-    env = await WorkflowEnvironment.start_time_skipping()
+    async def _call_stub(fn, prompt: str):
+        result = await fn(prompt)
+        return result.output if isinstance(result, FakeAgentResult) else result
+
+    @activity.defn(name="run_implementation_agent")
+    async def run_implementation_agent_activity(prompt: str) -> ImplementationOutput:
+        return await _call_stub(implementation_summary, prompt)
+
+    @activity.defn(name="run_evaluation_agent")
+    async def run_evaluation_agent_activity(prompt: str) -> EvaluationOutput:
+        return await _call_stub(evaluation_agent.run, prompt)
+
+    @activity.defn(name="run_tests_agent")
+    async def run_tests_agent_activity(prompt: str) -> TestPlanOutput:
+        return await _call_stub(test_summary, prompt)
+
+    @activity.defn(name="run_review_agent")
+    async def run_review_agent_activity(prompt: str) -> ReviewOutput:
+        return await _call_stub(review_agent.run, prompt)
+
+    @activity.defn(name="run_release_agent")
+    async def run_release_agent_activity(prompt: str) -> ReleasePlanOutput:
+        return await _call_stub(release_agent, prompt)
+
+    if external_settings is None:
+        env = await WorkflowEnvironment.start_time_skipping()
+        client = env.client
+        shutdown_cb = env.shutdown
+        task_queue = "test-sdlc"
+    else:
+        client = await temporal_client.Client.connect(external_settings.address)
+        task_queue = external_settings.task_queue
+
+        async def shutdown_cb():
+            # Temporal's async client currently has no shutdown/close hook, so
+            # remote test runs just drop the reference.
+            return None
+
     try:
         async with Worker(
-            env.client,
-            task_queue="test-sdlc",
+            client,
+            task_queue=task_queue,
             workflows=[SDLCWorkflow],
             activities=[
                 create_git_worktree_activity,
-                fetch_jira_task_activity,
+                read_issue_activity,
                 claude_code_acp_activity,
                 finalize_git_changes_activity,
                 close_claude_session_activity,
+                run_implementation_agent_activity,
+                run_evaluation_agent_activity,
+                run_tests_agent_activity,
+                run_review_agent_activity,
+                run_release_agent_activity,
             ],
         ):
             workflow_input = SDLCWorkflowInput(
                 repository="git@example.com:org/repo.git",
                 reference="main",
-                jira_task_url="https://example.atlassian.net/browse/ABC-123",
-                jira_email="dev@example.com",
-                jira_api_token="token",
+                issue_url="https://example.atlassian.net/browse/ABC-123",
                 branch_name=scenario.branch_override,
             )
-            return await env.client.execute_workflow(
+            return await client.execute_workflow(
                 SDLCWorkflow.run,
                 workflow_input,
                 id=f"sdlc-test-{uuid4().hex}",
-                task_queue="test-sdlc",
+                task_queue=task_queue,
                 retry_policy=RetryPolicy(maximum_attempts=1),
             )
     finally:
-        await env.shutdown()
+        await shutdown_cb()
 
 
 @pytest.mark.asyncio
@@ -226,7 +272,7 @@ async def test_workflow_retries_claude_until_checks_pass(monkeypatch):
             reference="main",
             cloned_from_remote=False,
         ),
-        jira_result=JiraTaskDetails(
+        issue_result=IssueDetails(
             issue_key="ABC-123",
             issue_url="https://example.atlassian.net/browse/ABC-123",
             summary="Enhance feature toggle",
@@ -293,12 +339,6 @@ async def test_workflow_retries_claude_until_checks_pass(monkeypatch):
             )
         )
 
-    monkeypatch.setattr(EVALUATION_AGENT, "run", evaluation_agent.run)
-    monkeypatch.setattr(REVIEW_AGENT, "run", review_agent.run)
-    monkeypatch.setattr(IMPLEMENTATION_AGENT, "run", implementation_summary)
-    monkeypatch.setattr(TESTS_AGENT, "run", test_summary)
-    monkeypatch.setattr(RELEASE_AGENT, "run", release_plan)
-
     result = await _run_workflow_with_mocks(
         scenario,
         evaluation_agent=evaluation_agent,
@@ -353,7 +393,7 @@ async def test_workflow_fails_when_review_never_approves(monkeypatch):
             reference="main",
             cloned_from_remote=False,
         ),
-        jira_result=JiraTaskDetails(
+        issue_result=IssueDetails(
             issue_key="XYZ-789",
             issue_url="https://example.atlassian.net/browse/XYZ-789",
             summary="Add validation",
@@ -416,13 +456,7 @@ async def test_workflow_fails_when_review_never_approves(monkeypatch):
             )
         )
 
-    monkeypatch.setattr(EVALUATION_AGENT, "run", evaluation_agent.run)
-    monkeypatch.setattr(REVIEW_AGENT, "run", review_agent.run)
-    monkeypatch.setattr(IMPLEMENTATION_AGENT, "run", dummy_summary)
-    monkeypatch.setattr(TESTS_AGENT, "run", dummy_summary)
-    monkeypatch.setattr(RELEASE_AGENT, "run", dummy_release)
-
-    with pytest.raises(FailureError) as exc:
+    with pytest.raises(WorkflowFailureError) as exc:
         await _run_workflow_with_mocks(
             scenario,
             evaluation_agent=evaluation_agent,
@@ -433,8 +467,8 @@ async def test_workflow_fails_when_review_never_approves(monkeypatch):
         )
 
     cause = exc.value.cause
-    assert cause is not None
-    assert isinstance(cause, RuntimeError)
+    assert isinstance(cause, ApplicationError)
+    assert cause.non_retryable is True
     assert "Code review stage did not reach approval." in str(cause)
     assert scenario.closed_sessions
     assert scenario.closed_sessions[-1] == "session-001"

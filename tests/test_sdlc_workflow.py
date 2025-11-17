@@ -1,4 +1,4 @@
-from agentsflow.activities.jira import JiraComment, JiraTaskDetails
+from agentsflow.activities.issues.jira import JiraComment, JiraTaskDetails
 from agentsflow.workflows.sdlc import _build_task_payload
 
 

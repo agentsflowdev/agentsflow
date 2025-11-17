@@ -3,7 +3,7 @@ AgentsFlow Temporal Activities
 
 A lightweight Python package that bundles reusable Temporal activities for the
 AgentsFlow SDLC automation pipeline. The activities encapsulate common
-infrastructure steps—provisioning Git worktrees, pulling Jira issue metadata,
+infrastructure steps—provisioning Git worktrees, pulling Jira or GitHub issue metadata,
 and interacting with Claude Code via the Agent Client Protocol (ACP)—so they
 can be orchestrated inside Temporal workflows.
 
@@ -11,8 +11,8 @@ Contents
 --------
 - **Git Worktree**: creates an isolated worktree from a local repository or
   remote URL, returning the filesystem path for downstream tasks.
-- **Jira Task Fetch**: retrieves issue summary, description, and comments using
-  Jira REST APIs with sensible error handling and ADF-to-text conversion.
+- **Issue Reader**: dispatches to Jira or GitHub based on the issue URL, normalising
+  summaries, descriptions, statuses, and comments for downstream agents.
 - **Claude Code ACP**: manages ACP sessions, streams prompts to the
   `claude-code-acp` binary, and returns responses while supporting session
   reuse and cleanup.
@@ -55,7 +55,7 @@ worker = Worker(
     task_queue="agentsflow-sdlc",
     activities=[
         activities.create_git_worktree,
-        activities.fetch_jira_task,
+        activities.read_issue,
         activities.run_claude_code,
         activities.close_claude_session,
     ],
@@ -66,11 +66,14 @@ worker = Worker(
 
 Each activity accepts and returns typed dataclasses defined in the `agentsflow`
 package. Consult the docstrings in `agentsflow/activities/*.py` for parameter
-details and payload structures.
+details and payload structures. Issue providers read their credentials directly
+from the worker environment: export `JIRA_EMAIL`, `JIRA_API_TOKEN`, and
+`GITHUB_TOKEN` (plus optional `JIRA_TIMEOUT_SECONDS` / `GITHUB_TIMEOUT_SECONDS`)
+before starting the worker so every activity invocation can authenticate.
 
 SDLC Workflow
 -------------
-The repository also ships with a high-level workflow that mirrors the Langflow
+The repository also ships with a high-level workflow that mirrors the Agentsflow
 SDLC pipeline while relying on [PydanticAI's Temporal integration](https://ai.pydantic.dev/durable_execution/temporal/)
 for LLM calls. Register it alongside the activities:
 
@@ -89,7 +92,7 @@ worker = Worker(
     task_queue="agentsflow-sdlc",
     activities=[
         activities.create_git_worktree,
-        activities.fetch_jira_task,
+        activities.read_issue,
     ],
     workflows=[SDLCWorkflow],
 )
@@ -99,9 +102,7 @@ execution = await temporal_client.start_workflow(
     SDLCWorkflowInput(
         repository="git@github.com:example/repo.git",
         reference="main",
-        jira_task_url="https://example.atlassian.net/browse/ABC-123",
-        jira_email="dev@example.com",
-        jira_api_token=os.environ["JIRA_API_TOKEN"],
+        issue_url="https://example.atlassian.net/browse/ABC-123",
     ),
     id="abc-123",
     task_queue="agentsflow-sdlc",
@@ -132,14 +133,15 @@ After configuring `.env` you can start the full SDLC flow with three steps:
    activity plus TemporalAgent plugins used for verification. Use
    `python -m agentsflow.worker --help` to override defaults (e.g. task queue or server address).
 3. **Trigger the workflow** – in another shell run the CLI. Any flag overrides
-   the `.env` values; for a minimal run specify the Jira URL and repository path
-   if they are not already present as `SDLC_JIRA_URL` / `SDLC_REPOSITORY` in `.env`:
+   the `.env` values; for a minimal run specify the issue URL and repository path
+   if they are not already present as `SDLC_ISSUE_URL` / `SDLC_REPOSITORY` (or
+   the legacy `SDLC_JIRA_URL`) in `.env`:
 
    ```bash
    python -m agentsflow.cli \
      --repository /path/to/checkout \
-     --jira-url https://example.atlassian.net/browse/ABC-123 \
-     --json
+     --issue-url https://example.atlassian.net/browse/ABC-123 \
+      --json
    ```
 
    Add `--reference`, `--model`, or `--workflow-id` when you need to
@@ -149,16 +151,17 @@ FastMCP Server
 --------------
 You can invoke the same Temporal workflow through an [MCP](https://github.com/modelcontextprotocol/cli) server powered by
 [FastMCP](https://github.com/jlowin/fastmcp). The server is defined in `agentsflow/mcp_server.py`
-and exposes a single tool, `run_sdlc_workflow`, requiring two parameters:
+and now exposes asynchronous control via two tools:
 
-- `jira_url`
-- `repository`
+1. `start_sdlc_workflow` – kicks off the workflow and returns the `workflow_id` / `run_id` so the client can poll later. Required params: `issue_url`, `repository`. Optional overrides: `branch_name`, `workflow_id`.
+2. `await_sdlc_workflow_result` – waits for a previously started workflow to finish. Required param: `workflow_id`. Optional: `run_id` (defaults to the latest run).
 
-All other workflow settings are sourced from environment variables via `CLISettings`.
-Ensure the following are exported or placed in `.env` before invoking the tool:
+For backwards compatibility you can still call `run_sdlc_workflow`, which simply chains the two operations above and returns the structured result once it completes. All workflow settings are sourced from environment variables via `CLISettings`.
+Ensure the following are exported or placed in `.env` before invoking a tool:
 
 - `JIRA_EMAIL` – Jira username used for API authentication
 - `JIRA_API_TOKEN` – Jira API token/password
+- `GITHUB_TOKEN` – GitHub personal access token for GitHub issue reads
 - `OPENAI_API_KEY` – used by the SDLC coding/verification agents
 - Optional overrides: `TEMPORAL_ADDRESS`, `TEMPORAL_NAMESPACE`, `SDLC_TASK_QUEUE`, `SDLC_AGENT_MODEL`, `SDLC_REFERENCE`, `SDLC_WORKFLOW_ID`
 

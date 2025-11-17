@@ -5,9 +5,10 @@ from __future__ import annotations
 from datetime import timedelta
 from typing import Literal, Sequence
 
-from pydantic import BaseModel, Field
+from pydantic import AliasChoices, BaseModel, Field
 from temporalio import workflow
 from temporalio.common import RetryPolicy
+from temporalio.exceptions import ApplicationError
 
 from agentsflow.activities import (
     ClaudeACPRequest,
@@ -16,8 +17,8 @@ from agentsflow.activities import (
     FinalizeGitResult,
     GitWorktreeRequest,
     GitWorktreeResult,
-    JiraTaskRequest,
-    JiraTaskDetails,
+    IssueDetails,
+    IssueRequest,
 )
 
 
@@ -31,12 +32,7 @@ class ClaudeRun(BaseModel):
     prompt: str
     message: str
     stop_reason: str | None = None
-from agentsflow.workflows.sdlc_agents import (
-    EVALUATION_AGENT,
-    IMPLEMENTATION_AGENT,
-    RELEASE_AGENT,
-    REVIEW_AGENT,
-    TESTS_AGENT,
+from agentsflow.activities.agents import (
     EvaluationOutput,
     ImplementationOutput,
     JiraTaskPayload,
@@ -55,11 +51,11 @@ class SDLCWorkflowInput(BaseModel):
     reference: str | None = Field(
         default=None, description="Optional git reference to base the worktree on."
     )
-    jira_task_url: str = Field(..., description="URL pointing to the Jira issue.")
-    jira_email: str = Field(
-        ..., description="Jira account email for API authentication."
+    issue_url: str = Field(
+        ...,
+        description="URL pointing to the issue (Jira, GitHub, etc.).",
+        validation_alias=AliasChoices("issue_url", "jira_task_url"),
     )
-    jira_api_token: str = Field(..., description="Jira API token or password.")
     branch_name: str | None = Field(
         default=None,
         description="Optional git branch name to write the committed changes to.",
@@ -87,7 +83,7 @@ class SDLCWorkflowOutput(BaseModel):
 
 @workflow.defn(name="sdlc_workflow", sandboxed=False)
 class SDLCWorkflow:
-    """Temporal workflow mirroring the Langflow SDLC pipeline."""
+    """Temporal workflow mirroring the Agentsflow SDLC pipeline."""
 
     @workflow.run
     async def run(self, params: SDLCWorkflowInput) -> SDLCWorkflowOutput:  # noqa: D401
@@ -101,19 +97,15 @@ class SDLCWorkflow:
             result_type=GitWorktreeResult,
         )
 
-        jira_result = await workflow.execute_activity(
-            "fetch_jira_task",
-            JiraTaskRequest(
-                task_url=params.jira_task_url,
-                jira_email=params.jira_email,
-                jira_api_token=params.jira_api_token,
-            ),
+        issue_result = await workflow.execute_activity(
+            "read_issue",
+            IssueRequest(issue_url=params.issue_url),
             start_to_close_timeout=timedelta(minutes=2),
             retry_policy=RetryPolicy(maximum_attempts=4),
-            result_type=JiraTaskDetails,
+            result_type=IssueDetails,
         )
 
-        task_payload = _build_task_payload(jira_result)
+        task_payload = _build_task_payload(issue_result)
 
         coding_session_id: str | None = None
         review_session_id: str | None = None
@@ -152,6 +144,21 @@ class SDLCWorkflow:
             )
             return response
 
+        async def _run_agent_activity(
+            name: str,
+            prompt: str,
+            result_type,
+            *,
+            timeout_minutes: int = 2,
+        ):
+            return await workflow.execute_activity(
+                name,
+                prompt,
+                start_to_close_timeout=timedelta(minutes=timeout_minutes),
+                retry_policy=RetryPolicy(maximum_attempts=2),
+                result_type=result_type,
+            )
+
         evaluation: EvaluationOutput | None = None
         implementation: ImplementationOutput | None = None
         test_plan: TestPlanOutput | None = None
@@ -170,8 +177,9 @@ class SDLCWorkflow:
                 # Implementation loop
                 while True:
                     if implementation_attempts >= MAX_IMPLEMENTATION_ATTEMPTS:
-                        raise RuntimeError(
-                            "Exceeded implementation attempts without satisfying task requirements."
+                        raise ApplicationError(
+                            "Exceeded implementation attempts without satisfying task requirements.",
+                            non_retryable=True,
                         )
                     implementation_attempts += 1
                     coding_prompt = _render_claude_prompt(
@@ -183,15 +191,15 @@ class SDLCWorkflow:
                     coding_response = await _invoke_claude(
                         "implementation", coding_prompt, session_kind="coding"
                     )
-                    evaluation = (
-                        await EVALUATION_AGENT.run(
-                            _render_evaluation_prompt(
-                                stage="implementation",
-                                task=task_payload,
-                                transcript=coding_response.message,
-                            )
-                        )
-                    ).output
+                    evaluation = await _run_agent_activity(
+                        "run_evaluation_agent",
+                        _render_evaluation_prompt(
+                            stage="implementation",
+                            task=task_payload,
+                            transcript=coding_response.message,
+                        ),
+                        EvaluationOutput,
+                    )
 
                     if evaluation.task_implemented:
                         coding_feedback = []
@@ -204,8 +212,9 @@ class SDLCWorkflow:
                     )
 
                 if evaluation is None:
-                    raise RuntimeError(
-                        "Evaluation did not complete during implementation stage."
+                    raise ApplicationError(
+                        "Evaluation did not complete during implementation stage.",
+                        non_retryable=True,
                     )
 
                 # Tests loop (if needed)
@@ -216,8 +225,9 @@ class SDLCWorkflow:
                     )
                     while True:
                         if tests_attempts >= MAX_TEST_ATTEMPTS:
-                            raise RuntimeError(
-                                "Exceeded automated testing attempts without success."
+                            raise ApplicationError(
+                                "Exceeded automated testing attempts without success.",
+                                non_retryable=True,
                             )
                         tests_attempts += 1
                         tests_prompt = _render_claude_prompt(
@@ -230,15 +240,15 @@ class SDLCWorkflow:
                             "tests", tests_prompt, session_kind="coding"
                         )
 
-                        evaluation = (
-                            await EVALUATION_AGENT.run(
-                                _render_evaluation_prompt(
-                                    stage="tests",
-                                    task=task_payload,
-                                    transcript=test_response.message,
-                                )
-                            )
-                        ).output
+                        evaluation = await _run_agent_activity(
+                            "run_evaluation_agent",
+                            _render_evaluation_prompt(
+                                stage="tests",
+                                task=task_payload,
+                                transcript=test_response.message,
+                            ),
+                            EvaluationOutput,
+                        )
 
                         if evaluation.automated_tests_implemented:
                             tests_feedback = []
@@ -260,7 +270,10 @@ class SDLCWorkflow:
                 # Review loop
                 while True:
                     if review_attempts >= MAX_REVIEW_ATTEMPTS:
-                        raise RuntimeError("Code review stage did not reach approval.")
+                        raise ApplicationError(
+                            "Code review stage did not reach approval.",
+                            non_retryable=True,
+                        )
                     review_attempts += 1
                     review_prompt_text = _render_claude_prompt(
                         stage="review",
@@ -272,13 +285,11 @@ class SDLCWorkflow:
                         "review", review_prompt_text, session_kind="review"
                     )
 
-                    review = (
-                        await REVIEW_AGENT.run(
-                            _render_review_evaluation_prompt(
-                                task_payload, review_response.message
-                            )
-                        )
-                    ).output
+                    review = await _run_agent_activity(
+                        "run_review_agent",
+                        _render_review_evaluation_prompt(task_payload, review_response.message),
+                        ReviewOutput,
+                    )
 
                     if review.approval:
                         review_feedback = []
@@ -292,48 +303,64 @@ class SDLCWorkflow:
                     break
 
             if review is None:
-                raise RuntimeError("Review stage did not produce a result.")
-
-            implementation = (
-                await IMPLEMENTATION_AGENT.run(
-                    _render_implementation_summary_prompt(task_payload, claude_runs)
+                raise ApplicationError(
+                    "Review stage did not produce a result.",
+                    non_retryable=True,
                 )
-            ).output
+
+            implementation = await _run_agent_activity(
+                "run_implementation_agent",
+                _render_implementation_summary_prompt(task_payload, claude_runs),
+                ImplementationOutput,
+            )
             if implementation is None:
-                raise RuntimeError("Implementation summary could not be generated.")
+                raise ApplicationError(
+                    "Implementation summary could not be generated.",
+                    non_retryable=True,
+                )
 
             if evaluation.automated_tests_implemented:
-                test_plan = (
-                    await TESTS_AGENT.run(
-                        _render_test_summary_prompt(task_payload, claude_runs)
-                    )
-                ).output
+                test_plan = await _run_agent_activity(
+                    "run_tests_agent",
+                    _render_test_summary_prompt(task_payload, claude_runs),
+                    TestPlanOutput,
+                )
             else:
                 test_plan = None
 
-            release_plan = (
-                await RELEASE_AGENT.run(
-                    _render_release_prompt(
-                        task_payload,
-                        implementation,
-                        evaluation,
-                        review,
-                        test_plan,
-                    )
-                )
-            ).output
+            release_plan = await _run_agent_activity(
+                "run_release_agent",
+                _render_release_prompt(
+                    task_payload,
+                    implementation,
+                    evaluation,
+                    review,
+                    test_plan,
+                ),
+                ReleasePlanOutput,
+                timeout_minutes=3,
+            )
             if release_plan is None:
-                raise RuntimeError("Release plan generation failed.")
+                raise ApplicationError(
+                    "Release plan generation failed.",
+                    non_retryable=True,
+                )
 
             branch_override = (params.branch_name or "").strip()
             plan_branch = (release_plan.branch_name or "").strip()
             branch_name = branch_override or plan_branch
             if not branch_name:
-                raise RuntimeError("No branch name available to commit the workflow changes.")
+                raise ApplicationError(
+                    "No branch name available to commit the workflow changes.",
+                    non_retryable=True,
+                )
 
             commit_message = (release_plan.commit_message or "").strip()
             if not commit_message:
-                raise RuntimeError("Release plan did not provide a commit message.")
+                raise ApplicationError(
+                    "Release plan did not provide a commit message.",
+                    non_retryable=True,
+                )
 
             finalize_result = await workflow.execute_activity(
                 "finalize_git_changes",
@@ -347,14 +374,16 @@ class SDLCWorkflow:
                 result_type=FinalizeGitResult,
             )
         finally:
-            if coding_session_id:
+            closed_session_ids: set[str] = set()
+            if coding_session_id and coding_session_id not in closed_session_ids:
                 await workflow.execute_activity(
                     "close_claude_session",
                     coding_session_id,
                     start_to_close_timeout=timedelta(minutes=1),
                     retry_policy=RetryPolicy(maximum_attempts=3),
                 )
-            if review_session_id:
+                closed_session_ids.add(coding_session_id)
+            if review_session_id and review_session_id not in closed_session_ids:
                 await workflow.execute_activity(
                     "close_claude_session",
                     review_session_id,
@@ -380,7 +409,7 @@ class SDLCWorkflow:
         )
 
 
-def _build_task_payload(details: JiraTaskDetails) -> JiraTaskPayload:
+def _build_task_payload(details: IssueDetails) -> JiraTaskPayload:
     comments = [
         f"{comment.author}: {comment.body.strip()}"
         for comment in details.comments

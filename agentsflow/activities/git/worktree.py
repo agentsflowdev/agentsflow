@@ -1,13 +1,12 @@
 """Temporal activity for creating Git worktrees.
 
-The implementation closely mirrors the Langflow `GitWorktreeComponent` so we
+The implementation closely mirrors our reference `GitWorktreeComponent` so we
 can reuse the same behaviour within Temporal workflows.
 """
 
 from __future__ import annotations
 
 import asyncio
-from dataclasses import dataclass
 from pathlib import Path
 import shutil
 import tempfile
@@ -16,23 +15,7 @@ import git
 from git.exc import GitCommandError, InvalidGitRepositoryError, NoSuchPathError
 from temporalio import activity
 
-
-@dataclass
-class GitWorktreeRequest:
-    """Parameters required to create a git worktree."""
-
-    repository: str
-    reference: str | None = None
-
-
-@dataclass
-class GitWorktreeResult:
-    """Returned information about the created worktree."""
-
-    worktree_path: str
-    repository_path: str
-    reference: str
-    cloned_from_remote: bool
+from .models import GitWorktreeRequest, GitWorktreeResult
 
 
 def _is_local_path(path_or_url: str) -> bool:

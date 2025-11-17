@@ -72,7 +72,7 @@ class ClaudeACPResponse:
 class _ClaudeSession:
     process: asyncio.subprocess.Process
     connection: ClientSideConnection
-    client: "_LangflowClaudeClient"
+    client: "_ClaudeACPClient"
     session_id: str
 
     async def send_prompt(self, prompt: str) -> tuple[str, PromptResponse]:
@@ -125,7 +125,7 @@ class _SessionRegistry:
                 process.terminate()
             raise RuntimeError("claude-code-acp process does not expose stdio pipes.")
 
-        client_impl = _LangflowClaudeClient(auto_approve=auto_approve, workspace_dir=workspace_dir)
+        client_impl = _ClaudeACPClient(auto_approve=auto_approve, workspace_dir=workspace_dir)
         connection = ClientSideConnection(lambda _agent: client_impl, process.stdin, process.stdout)
 
         try:
@@ -162,7 +162,7 @@ class _SessionRegistry:
 _session_registry = _SessionRegistry()
 
 
-class _LangflowClaudeClient(Client):
+class _ClaudeACPClient(Client):
     def __init__(self, *, auto_approve: bool, workspace_dir: Path) -> None:
         self._auto_approve = auto_approve
         self._workspace_dir = workspace_dir
