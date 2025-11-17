@@ -144,8 +144,9 @@ After configuring `.env` you can start the full SDLC flow with three steps:
       --json
    ```
 
-   Add `--reference`, `--model`, or `--workflow-id` when you need to
-   deviate from the values stored in `.env`.
+   Add `--reference` or `--model` when you need to deviate from the values stored in `.env`.
+   Each CLI invocation now generates a random workflow ID shaped like `sdlc-1a2b3c4d`,
+   ensuring every run is unique without any manual overrides.
 
 FastMCP Server
 --------------
@@ -153,17 +154,17 @@ You can invoke the same Temporal workflow through an [MCP](https://github.com/mo
 [FastMCP](https://github.com/jlowin/fastmcp). The server is defined in `agentsflow/mcp_server.py`
 and now exposes asynchronous control via two tools:
 
-1. `start_sdlc_workflow` – kicks off the workflow and returns the `workflow_id` / `run_id` so the client can poll later. Required params: `issue_url`, `repository`. Optional overrides: `branch_name`, `workflow_id`.
-2. `await_sdlc_workflow_result` – waits for a previously started workflow to finish. Required param: `workflow_id`. Optional: `run_id` (defaults to the latest run).
+1. `start_sdlc_workflow` – kicks off the workflow and returns the `workflow_id` / `run_id` so the client can poll later. Required params: `issue_url`, `repository`. Optional override: `branch_name`.
+2. `await_sdlc_workflow_result` – waits for the latest execution of the specified workflow to finish. Required param: `workflow_id`.
 
-For backwards compatibility you can still call `run_sdlc_workflow`, which simply chains the two operations above and returns the structured result once it completes. All workflow settings are sourced from environment variables via `CLISettings`.
+All workflow settings are sourced from environment variables via `CLISettings`.
 Ensure the following are exported or placed in `.env` before invoking a tool:
 
 - `JIRA_EMAIL` – Jira username used for API authentication
 - `JIRA_API_TOKEN` – Jira API token/password
 - `GITHUB_TOKEN` – GitHub personal access token for GitHub issue reads
 - `OPENAI_API_KEY` – used by the SDLC coding/verification agents
-- Optional overrides: `TEMPORAL_ADDRESS`, `TEMPORAL_NAMESPACE`, `SDLC_TASK_QUEUE`, `SDLC_AGENT_MODEL`, `SDLC_REFERENCE`, `SDLC_WORKFLOW_ID`
+- Optional overrides: `TEMPORAL_ADDRESS`, `TEMPORAL_NAMESPACE`, `SDLC_TASK_QUEUE`, `SDLC_AGENT_MODEL`, `SDLC_REFERENCE`
 
 Run the server over stdio (ideal for MCP-compatible clients):
 
