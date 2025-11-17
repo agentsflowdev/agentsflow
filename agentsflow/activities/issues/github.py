@@ -68,7 +68,9 @@ def _fetch_github_issue(
     token: str | None,
     timeout_seconds: float,
 ) -> IssueDetails:
-    github = Github(login_or_token=token, timeout=timeout_seconds)
+    # PyGithub requires an integer timeout; truncate to int but avoid zero.
+    github_timeout = max(1, int(timeout_seconds))
+    github = Github(login_or_token=token, timeout=github_timeout)
     try:
         repository = github.get_repo(f"{owner}/{repo}")
         issue = repository.get_issue(number=issue_number)
