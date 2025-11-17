@@ -72,7 +72,7 @@ class ClaudeACPResponse:
 class _ClaudeSession:
     process: asyncio.subprocess.Process
     connection: ClientSideConnection
-    client: "_LangflowClaudeClient"
+    client: "_ClaudeACPClient"
     session_id: str
 
     async def send_prompt(self, prompt: str) -> tuple[str, PromptResponse]:
@@ -125,8 +125,12 @@ class _SessionRegistry:
                 process.terminate()
             raise RuntimeError("claude-code-acp process does not expose stdio pipes.")
 
-        client_impl = _LangflowClaudeClient(auto_approve=auto_approve, workspace_dir=workspace_dir)
-        connection = ClientSideConnection(lambda _agent: client_impl, process.stdin, process.stdout)
+        client_impl = _ClaudeACPClient(
+            auto_approve=auto_approve, workspace_dir=workspace_dir
+        )
+        connection = ClientSideConnection(
+            lambda _agent: client_impl, process.stdin, process.stdout
+        )
 
         try:
             await connection.initialize(
@@ -162,7 +166,7 @@ class _SessionRegistry:
 _session_registry = _SessionRegistry()
 
 
-class _LangflowClaudeClient(Client):
+class _ClaudeACPClient(Client):
     def __init__(self, *, auto_approve: bool, workspace_dir: Path) -> None:
         self._auto_approve = auto_approve
         self._workspace_dir = workspace_dir
@@ -191,7 +195,9 @@ class _LangflowClaudeClient(Client):
         option = _pick_preferred_option(params.options)
         if option is None:
             return RequestPermissionResponse(outcome=DeniedOutcome(outcome="cancelled"))
-        return RequestPermissionResponse(outcome=AllowedOutcome(optionId=option.optionId, outcome="selected"))
+        return RequestPermissionResponse(
+            outcome=AllowedOutcome(optionId=option.optionId, outcome="selected")
+        )
 
     async def writeTextFile(  # type: ignore[override]
         self,
@@ -208,7 +214,9 @@ class _LangflowClaudeClient(Client):
     ) -> ReadTextFileResponse:
         path = self._resolve_workspace_path(params.path)
         if not path.exists():
-            raise RequestError.invalid_params({"path": params.path, "reason": "file does not exist"})
+            raise RequestError.invalid_params(
+                {"path": params.path, "reason": "file does not exist"}
+            )
         text = path.read_text()
         return ReadTextFileResponse(content=text)
 
@@ -261,7 +269,9 @@ class _LangflowClaudeClient(Client):
         else:
             path = path.resolve()
         if not _is_within_root(path, self._workspace_dir):
-            raise RequestError.invalid_params({"path": requested, "reason": "path outside workspace"})
+            raise RequestError.invalid_params(
+                {"path": requested, "reason": "path outside workspace"}
+            )
         return path
 
 
@@ -285,7 +295,9 @@ def _extract_text(content: object) -> str:
     return ""
 
 
-def _pick_preferred_option(options: Iterable[PermissionOption] | None) -> PermissionOption | None:
+def _pick_preferred_option(
+    options: Iterable[PermissionOption] | None,
+) -> PermissionOption | None:
     if not options:
         return None
     best = None
@@ -332,7 +344,9 @@ def _resolve_claude_binary(binary: str | None) -> str:
     resolved = shutil.which("claude-code-acp")
     if resolved:
         return resolved
-    raise FileNotFoundError("Unable to locate `claude-code-acp` binary. Set ACP_CLAUDE_BIN or provide a path.")
+    raise FileNotFoundError(
+        "Unable to locate `claude-code-acp` binary. Set ACP_CLAUDE_BIN or provide a path."
+    )
 
 
 async def run_claude_code(request: ClaudeACPRequest) -> ClaudeACPResponse:
@@ -370,7 +384,9 @@ async def run_claude_code(request: ClaudeACPRequest) -> ClaudeACPResponse:
 
     if session is None:
         resolved_binary = _resolve_claude_binary(request.claude_binary)
-        auto_approve = request.auto_approve if request.auto_approve is not None else True
+        auto_approve = (
+            request.auto_approve if request.auto_approve is not None else True
+        )
         activity.logger.debug(
             "Launching Claude ACP session",
             extra={

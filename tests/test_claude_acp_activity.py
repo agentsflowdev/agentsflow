@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from agentsflow.activities import claude_acp
+from agentsflow.activities.agents import claude_acp
 
 
 class FakeSession:
@@ -31,7 +31,11 @@ class DummyRegistry:
     async def get(self, session_id: str | None):
         if session_id is None:
             return None
-        return self.session if self.session and self.session.session_id == session_id else None
+        return (
+            self.session
+            if self.session and self.session.session_id == session_id
+            else None
+        )
 
     async def create_session(self, *, claude_binary, workspace_dir, auto_approve):
         self.created_with = {
@@ -52,7 +56,9 @@ class DummyRegistry:
 async def test_run_claude_code_creates_session(monkeypatch, tmp_path):
     registry = DummyRegistry()
     monkeypatch.setattr(claude_acp, "_session_registry", registry)
-    monkeypatch.setattr(claude_acp, "_resolve_claude_binary", lambda path: "/fake/claude")
+    monkeypatch.setattr(
+        claude_acp, "_resolve_claude_binary", lambda path: "/fake/claude"
+    )
 
     request = claude_acp.ClaudeACPRequest(prompt="Hello", workspace_dir=str(tmp_path))
 
@@ -73,7 +79,9 @@ async def test_run_claude_code_reuses_session(monkeypatch, tmp_path):
     existing = FakeSession(session_id="sess-existing")
     registry = DummyRegistry(session=existing)
     monkeypatch.setattr(claude_acp, "_session_registry", registry)
-    monkeypatch.setattr(claude_acp, "_resolve_claude_binary", lambda path: "/fake/claude")
+    monkeypatch.setattr(
+        claude_acp, "_resolve_claude_binary", lambda path: "/fake/claude"
+    )
 
     request = claude_acp.ClaudeACPRequest(
         prompt="Hello again",

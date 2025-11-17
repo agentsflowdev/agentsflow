@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import asyncio
-from dataclasses import dataclass
+import os
 import re
+from dataclasses import dataclass
 from contextlib import suppress
 from typing import Any, Iterable, Sequence
 from urllib.parse import parse_qs, urlparse
@@ -12,6 +13,13 @@ from urllib.parse import parse_qs, urlparse
 from jira import JIRA
 from jira.exceptions import JIRAError
 from temporalio import activity
+
+from .models import IssueComment, IssueDetails
+from .reader import IssueProvider, IssueRequest, register_issue_provider
+
+JIRA_EMAIL_ENV = "JIRA_EMAIL"
+JIRA_API_TOKEN_ENV = "JIRA_API_TOKEN"
+JIRA_TIMEOUT_ENV = "JIRA_TIMEOUT_SECONDS"
 
 
 ISSUE_KEY_RE = re.compile(r"([A-Z][A-Z0-9_]+-\d+)", re.IGNORECASE)
@@ -31,25 +39,6 @@ STOP_SEGMENTS = {
     "ticket",
     "view",
 }
-
-
-@dataclass
-class JiraComment:
-    id: str | None
-    author: str
-    created: str | None
-    updated: str | None
-    body: str
-
-
-@dataclass
-class JiraTaskDetails:
-    issue_key: str
-    issue_url: str
-    summary: str
-    description: str
-    status: str | None
-    comments: list[JiraComment]
 
 
 @dataclass
@@ -97,20 +86,32 @@ def _extract_issue_key(task_url: str) -> tuple[str, list[str], str]:
         match = ISSUE_KEY_RE.search(segment)
         if match:
             issue_key = match.group(1).upper()
-            return issue_key, _candidate_base_urls(parsed_url, issue_key), parsed_url.geturl()
+            return (
+                issue_key,
+                _candidate_base_urls(parsed_url, issue_key),
+                parsed_url.geturl(),
+            )
 
     for values in parse_qs(parsed_url.query, keep_blank_values=False).values():
         for value in values:
             match = ISSUE_KEY_RE.search(value)
             if match:
                 issue_key = match.group(1).upper()
-                return issue_key, _candidate_base_urls(parsed_url, issue_key), parsed_url.geturl()
+                return (
+                    issue_key,
+                    _candidate_base_urls(parsed_url, issue_key),
+                    parsed_url.geturl(),
+                )
 
     if parsed_url.fragment:
         match = ISSUE_KEY_RE.search(parsed_url.fragment)
         if match:
             issue_key = match.group(1).upper()
-            return issue_key, _candidate_base_urls(parsed_url, issue_key), parsed_url.geturl()
+            return (
+                issue_key,
+                _candidate_base_urls(parsed_url, issue_key),
+                parsed_url.geturl(),
+            )
 
     raise ValueError("Could not detect a Jira issue key in the provided URL.")
 
@@ -121,7 +122,9 @@ def _adf_to_text(node: Any) -> str:
     if isinstance(node, str):
         return node
     if isinstance(node, list):
-        return "\n".join(part for part in (_adf_to_text(child) for child in node) if part)
+        return "\n".join(
+            part for part in (_adf_to_text(child) for child in node) if part
+        )
     if isinstance(node, dict):
         node_type = node.get("type")
         content = node.get("content") or []
@@ -214,20 +217,20 @@ def _build_response(
     comments: Sequence[dict[str, Any]],
     issue_key: str,
     original_url: str,
-) -> JiraTaskDetails:
+) -> IssueDetails:
     fields = issue_data.get("fields", {})
     description_raw = fields.get("description")
     description = _adf_to_text(description_raw).strip()
     summary = fields.get("summary") or ""
     status_name = (fields.get("status") or {}).get("name")
 
-    parsed_comments: list[JiraComment] = []
+    parsed_comments: list[IssueComment] = []
     for item in comments or []:
         body_text = _adf_to_text(item.get("body")).strip()
         author = item.get("author") or {}
         display_name = author.get("displayName") or author.get("emailAddress") or ""
         parsed_comments.append(
-            JiraComment(
+            IssueComment(
                 id=item.get("id"),
                 author=display_name,
                 created=item.get("created"),
@@ -236,7 +239,7 @@ def _build_response(
             )
         )
 
-    return JiraTaskDetails(
+    return IssueDetails(
         issue_key=issue_key,
         issue_url=original_url,
         summary=summary,
@@ -250,7 +253,9 @@ def _format_jira_error(exc: JIRAError, issue_key: str) -> str:
     status = getattr(exc, "status_code", None)
     text = (getattr(exc, "text", "") or str(exc)).strip()
     if status:
-        base = f"Jira API returned status {status} while retrieving issue '{issue_key}'."
+        base = (
+            f"Jira API returned status {status} while retrieving issue '{issue_key}'."
+        )
     else:
         base = f"Jira API error while retrieving issue '{issue_key}'."
     if text:
@@ -266,13 +271,15 @@ def _fetch_issue_details(
     original_url: str,
     *,
     timeout_seconds: float,
-) -> JiraTaskDetails:
+) -> IssueDetails:
     last_error: Exception | None = None
 
     for base_url in base_candidates:
         client: JIRA | None = None
         try:
-            client = JIRA(server=base_url, basic_auth=(email, token), timeout=timeout_seconds)
+            client = JIRA(
+                server=base_url, basic_auth=(email, token), timeout=timeout_seconds
+            )
             issue = client.issue(issue_key, expand="renderedFields,names")
             comments = client.comments(issue)
 
@@ -288,8 +295,12 @@ def _fetch_issue_details(
                         {
                             "id": getattr(comment, "id", None),
                             "author": {
-                                "displayName": getattr(author, "displayName", "") if author else "",
-                                "emailAddress": getattr(author, "emailAddress", "") if author else "",
+                                "displayName": getattr(author, "displayName", "")
+                                if author
+                                else "",
+                                "emailAddress": getattr(author, "emailAddress", "")
+                                if author
+                                else "",
                             },
                             "created": getattr(comment, "created", None),
                             "updated": getattr(comment, "updated", None),
@@ -314,10 +325,12 @@ def _fetch_issue_details(
         raise last_error
     if last_error is not None:
         raise last_error
-    raise RuntimeError(f"Failed to retrieve Jira issue '{issue_key}' for unknown reasons.")
+    raise RuntimeError(
+        f"Failed to retrieve Jira issue '{issue_key}' for unknown reasons."
+    )
 
 
-async def fetch_jira_task(request: JiraTaskRequest) -> JiraTaskDetails:
+async def fetch_jira_task(request: JiraTaskRequest) -> IssueDetails:
     task_url = (request.task_url or "").strip()
     email = (request.jira_email or "").strip()
     token = (request.jira_api_token or "").strip()
@@ -325,7 +338,9 @@ async def fetch_jira_task(request: JiraTaskRequest) -> JiraTaskDetails:
     if not task_url:
         raise ValueError("Task URL is required.")
     if not email or not token:
-        raise ValueError("Both Jira account email/username and API token must be provided.")
+        raise ValueError(
+            "Both Jira account email/username and API token must be provided."
+        )
 
     issue_key, base_candidates, original = _extract_issue_key(task_url)
     activity.logger.debug(
@@ -375,3 +390,57 @@ async def fetch_jira_task(request: JiraTaskRequest) -> JiraTaskDetails:
         extra={"issue_key": details.issue_key, "status": details.status},
     )
     return details
+
+
+class JiraIssueProvider(IssueProvider):
+    name = "jira"
+
+    def supports(self, issue_url: str) -> bool:
+        host = urlparse(issue_url).netloc.lower()
+        return "atlassian.net" in host or "jira" in host
+
+    async def read(self, request: IssueRequest) -> IssueDetails:
+        jira_email = os.environ.get(JIRA_EMAIL_ENV)
+        jira_api_token = os.environ.get(JIRA_API_TOKEN_ENV)
+        timeout_override = os.environ.get(JIRA_TIMEOUT_ENV)
+        timeout_seconds = _coerce_timeout(timeout_override, request.timeout_seconds)
+        if not jira_email or not jira_api_token:
+            raise ValueError(
+                f"Jira provider requires {JIRA_EMAIL_ENV} and {JIRA_API_TOKEN_ENV} environment variables."
+            )
+        jira_request = JiraTaskRequest(
+            task_url=request.issue_url,
+            jira_email=jira_email,
+            jira_api_token=jira_api_token,
+            timeout_seconds=timeout_seconds,
+        )
+        return await fetch_jira_task(jira_request)
+
+
+def _coerce_timeout(value: str | None, default: float) -> float:
+    if value is None:
+        return default
+    try:
+        parsed = float(value)
+    except ValueError as exc:  # pragma: no cover - defensive guard
+        raise ValueError(f"{JIRA_TIMEOUT_ENV} must be numeric when set.") from exc
+    if parsed <= 0:
+        raise ValueError(f"{JIRA_TIMEOUT_ENV} must be greater than zero when set.")
+    return parsed
+
+
+register_issue_provider(JiraIssueProvider())
+
+
+# Backwards-compatible aliases for downstream imports.
+JiraComment = IssueComment
+JiraTaskDetails = IssueDetails
+
+
+__all__ = [
+    "JiraIssueProvider",
+    "JiraComment",
+    "JiraTaskDetails",
+    "JiraTaskRequest",
+    "fetch_jira_task",
+]

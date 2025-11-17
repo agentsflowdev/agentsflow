@@ -8,11 +8,12 @@ import json
 import os
 import re
 import sys
+from typing import Any
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic_ai.durable_exec.temporal import PydanticAIPlugin
-from temporalio.client import Client
+from temporalio.client import Client, WorkflowHandle
 from temporalio.contrib.pydantic import pydantic_data_converter
 
 from agentsflow.workflows import SDLCWorkflow, SDLCWorkflowInput, SDLCWorkflowOutput
@@ -23,9 +24,8 @@ class CLISettings(BaseSettings):
 
     repository: str | None = Field(default=None, alias="SDLC_REPOSITORY")
     reference: str | None = Field(default=None, alias="SDLC_REFERENCE")
+    issue_url: str | None = Field(default=None, alias="SDLC_ISSUE_URL")
     jira_url: str | None = Field(default=None, alias="SDLC_JIRA_URL")
-    jira_email: str | None = Field(default=None, alias="JIRA_EMAIL")
-    jira_token: str | None = Field(default=None, alias="JIRA_API_TOKEN")
     address: str = Field(default="127.0.0.1:7233", alias="TEMPORAL_ADDRESS")
     namespace: str = Field(default="default", alias="TEMPORAL_NAMESPACE")
     task_queue: str = Field(default="agentsflow-sdlc", alias="SDLC_TASK_QUEUE")
@@ -34,7 +34,12 @@ class CLISettings(BaseSettings):
     branch_name: str | None = Field(default=None, alias="SDLC_BRANCH_NAME")
     json_output: bool = Field(default=False, alias="SDLC_JSON_OUTPUT")
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", populate_by_name=True, extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        populate_by_name=True,
+        extra="ignore",
+    )
 
 
 def _parse_args(argv: list[str], defaults: CLISettings) -> argparse.Namespace:
@@ -46,26 +51,14 @@ def _parse_args(argv: list[str], defaults: CLISettings) -> argparse.Namespace:
         required=defaults.repository is None,
         help="Local path or remote URL to the git repository (env: SDLC_REPOSITORY).",
     )
+    issue_url_default = defaults.issue_url or defaults.jira_url
     parser.add_argument(
+        "--issue-url",
         "--jira-url",
-        dest="jira_url",
-        default=defaults.jira_url,
-        required=defaults.jira_url is None,
-        help="URL of the Jira issue to process (env: SDLC_JIRA_URL).",
-    )
-    parser.add_argument(
-        "--jira-email",
-        dest="jira_email",
-        default=defaults.jira_email,
-        required=defaults.jira_email is None,
-        help="Jira account email used for authentication (env: JIRA_EMAIL).",
-    )
-    parser.add_argument(
-        "--jira-token",
-        dest="jira_token",
-        default=defaults.jira_token,
-        required=defaults.jira_token is None,
-        help="Jira API token or password (env: JIRA_API_TOKEN).",
+        dest="issue_url",
+        default=issue_url_default,
+        required=issue_url_default is None,
+        help="URL of the issue to process (env: SDLC_ISSUE_URL or SDLC_JIRA_URL).",
     )
     parser.add_argument(
         "--reference",
@@ -121,19 +114,29 @@ def _parse_args(argv: list[str], defaults: CLISettings) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def _derive_workflow_id(jira_url: str) -> str:
-    slug = re.sub(r"[^a-z0-9]+", "-", jira_url.lower()).strip("-")
+def _derive_workflow_id(issue_url: str) -> str:
+    slug = re.sub(r"[^a-z0-9]+", "-", issue_url.lower()).strip("-")
     slug = slug or "sdlc"
     return f"sdlc-{slug}"[:200]
 
 
-async def _run_workflow(args: argparse.Namespace) -> SDLCWorkflowOutput:
-    client = await Client.connect(
-        args.address,
-        namespace=args.namespace,
+async def _create_temporal_client(address: str, namespace: str) -> Client:
+    """Create a Temporal client with the standard AgentsFlow configuration."""
+
+    return await Client.connect(
+        address,
+        namespace=namespace,
         data_converter=pydantic_data_converter,
         plugins=[PydanticAIPlugin()],
     )
+
+
+async def _start_workflow_handle(
+    args: argparse.Namespace,
+) -> WorkflowHandle[SDLCWorkflowOutput, Any]:
+    """Start the SDLC workflow and return the Temporal workflow handle."""
+
+    client = await _create_temporal_client(args.address, args.namespace)
 
     if args.model:
         os.environ["SDLC_AGENT_MODEL"] = args.model
@@ -141,21 +144,40 @@ async def _run_workflow(args: argparse.Namespace) -> SDLCWorkflowOutput:
     input_payload = SDLCWorkflowInput(
         repository=args.repository,
         reference=args.reference,
-        jira_task_url=args.jira_url,
-        jira_email=args.jira_email,
-        jira_api_token=args.jira_token,
+        issue_url=args.issue_url,
         branch_name=args.branch_name,
     )
 
-    workflow_id = args.workflow_id or _derive_workflow_id(args.jira_url)
+    workflow_id = args.workflow_id or _derive_workflow_id(args.issue_url)
 
-    handle = await client.start_workflow(
+    return await client.start_workflow(
         SDLCWorkflow.run,
         input_payload,
         id=workflow_id,
         task_queue=args.task_queue,
     )
 
+
+async def _await_workflow_result(
+    address: str,
+    namespace: str,
+    workflow_id: str,
+    *,
+    run_id: str | None = None,
+) -> SDLCWorkflowOutput:
+    """Await the result for an existing workflow execution."""
+
+    client = await _create_temporal_client(address, namespace)
+    handle: WorkflowHandle[SDLCWorkflowOutput, Any] = client.get_workflow_handle(
+        workflow_id,
+        run_id=run_id,
+        result_type=SDLCWorkflowOutput,
+    )
+    return await handle.result()
+
+
+async def _run_workflow(args: argparse.Namespace) -> SDLCWorkflowOutput:
+    handle = await _start_workflow_handle(args)
     return await handle.result()
 
 

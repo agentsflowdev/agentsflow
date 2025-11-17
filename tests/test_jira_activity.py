@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from agentsflow.activities import jira
+from agentsflow.activities.issues import jira
 
 
 @pytest.mark.asyncio
@@ -13,7 +13,15 @@ async def test_fetch_jira_task_success(monkeypatch):
         summary="Test issue",
         description="Details",
         status="In Progress",
-        comments=[jira.JiraComment(id="1", author="Jane", created="2025-01-01", updated=None, body="Looks good")],
+        comments=[
+            jira.JiraComment(
+                id="1",
+                author="Jane",
+                created="2025-01-01",
+                updated=None,
+                body="Looks good",
+            )
+        ],
     )
 
     async def fake_to_thread(func, *args, **kwargs):

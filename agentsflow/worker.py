@@ -11,16 +11,6 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from temporalio.client import Client
 from temporalio.worker import Worker
 from temporalio.contrib.pydantic import pydantic_data_converter
-from pydantic_ai.durable_exec.temporal import AgentPlugin, PydanticAIPlugin
-
-# Temporal LLM agent instances shared with the worker plugins
-from agentsflow.workflows.sdlc_agents import (
-    EVALUATION_AGENT,
-    IMPLEMENTATION_AGENT,
-    RELEASE_AGENT,
-    REVIEW_AGENT,
-    TESTS_AGENT,
-)
 from agentsflow.activities import AgentsFlowActivities
 from agentsflow.workflows import SDLCWorkflow
 
@@ -34,11 +24,18 @@ class WorkerSettings(BaseSettings):
     claude_binary: str | None = Field(default=None, alias="CLAUDE_CODE_BIN")
     claude_auto_approve: bool = Field(default=True, alias="CLAUDE_AUTO_APPROVE")
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", populate_by_name=True, extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        populate_by_name=True,
+        extra="ignore",
+    )
 
 
 def _parse_args(argv: list[str], defaults: WorkerSettings) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Start the AgentsFlow Temporal worker.")
+    parser = argparse.ArgumentParser(
+        description="Start the AgentsFlow Temporal worker."
+    )
     parser.add_argument(
         "--address",
         default=defaults.address,
@@ -83,7 +80,6 @@ async def _run_worker(args: argparse.Namespace) -> None:
         args.address,
         namespace=args.namespace,
         data_converter=pydantic_data_converter,
-        plugins=[PydanticAIPlugin()],
     )
 
     activities = AgentsFlowActivities(
@@ -95,23 +91,7 @@ async def _run_worker(args: argparse.Namespace) -> None:
         client,
         task_queue=args.task_queue,
         workflows=[SDLCWorkflow],
-        activities=[
-            activities.create_git_worktree,
-            activities.finalize_git_changes,
-            activities.fetch_jira_task,
-            activities.run_claude_code,
-            activities.close_claude_session,
-        ],
-        plugins=[
-            AgentPlugin(agent)
-            for agent in (
-                IMPLEMENTATION_AGENT,
-                EVALUATION_AGENT,
-                TESTS_AGENT,
-                REVIEW_AGENT,
-                RELEASE_AGENT,
-            )
-        ],
+        activities=activities.activities(),
     )
 
     print(

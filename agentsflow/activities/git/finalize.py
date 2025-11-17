@@ -3,32 +3,12 @@
 from __future__ import annotations
 
 import asyncio
-from dataclasses import dataclass
 from pathlib import Path
 
 import git
 from git.exc import GitCommandError, InvalidGitRepositoryError, NoSuchPathError
 from temporalio import activity
-
-
-@dataclass
-class FinalizeGitRequest:
-    """Parameters describing how to commit worktree changes."""
-
-    worktree_path: str
-    branch_name: str
-    commit_message: str
-    push: bool = False
-    remote: str = "origin"
-
-
-@dataclass
-class FinalizeGitResult:
-    """Result of finalising the worktree."""
-
-    branch_name: str
-    commit_sha: str
-    pushed: bool
+from .models import FinalizeGitRequest, FinalizeGitResult
 
 
 def _finalize_git_changes(request: FinalizeGitRequest) -> FinalizeGitResult:
@@ -93,14 +73,22 @@ def _finalize_git_changes(request: FinalizeGitRequest) -> FinalizeGitResult:
                 "pushed": pushed,
             },
         )
-        return FinalizeGitResult(branch_name=branch_name, commit_sha=commit_sha, pushed=pushed)
+        return FinalizeGitResult(
+            branch_name=branch_name, commit_sha=commit_sha, pushed=pushed
+        )
     except GitCommandError as exc:
         detail = exc.stderr or exc.stdout or str(exc)
         activity.logger.exception(
             "Git command failed during finalisation",
-            extra={"worktree_path": str(worktree_path), "branch_name": branch_name, "detail": detail.strip()},
+            extra={
+                "worktree_path": str(worktree_path),
+                "branch_name": branch_name,
+                "detail": detail.strip(),
+            },
         )
-        raise RuntimeError(f"Git command failed while finalising worktree: {detail.strip()}") from exc
+        raise RuntimeError(
+            f"Git command failed while finalising worktree: {detail.strip()}"
+        ) from exc
 
 
 async def finalize_git_changes(request: FinalizeGitRequest) -> FinalizeGitResult:
