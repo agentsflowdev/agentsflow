@@ -34,7 +34,12 @@ class CLISettings(BaseSettings):
     branch_name: str | None = Field(default=None, alias="SDLC_BRANCH_NAME")
     json_output: bool = Field(default=False, alias="SDLC_JSON_OUTPUT")
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", populate_by_name=True, extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        populate_by_name=True,
+        extra="ignore",
+    )
 
 
 def _parse_args(argv: list[str], defaults: CLISettings) -> argparse.Namespace:
@@ -126,7 +131,9 @@ async def _create_temporal_client(address: str, namespace: str) -> Client:
     )
 
 
-async def _start_workflow_handle(args: argparse.Namespace) -> WorkflowHandle[SDLCWorkflowOutput, Any]:
+async def _start_workflow_handle(
+    args: argparse.Namespace,
+) -> WorkflowHandle[SDLCWorkflowOutput, Any]:
     """Start the SDLC workflow and return the Temporal workflow handle."""
 
     client = await _create_temporal_client(args.address, args.namespace)

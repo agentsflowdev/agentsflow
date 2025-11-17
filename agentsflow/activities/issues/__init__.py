@@ -12,11 +12,17 @@ from .reader import (
     read_issue as _read_issue,
     register_issue_provider,
 )
-from .jira import JiraComment, JiraTaskDetails, JiraTaskRequest, fetch_jira_task as _fetch_jira_task
+from .jira import (
+    JiraComment,
+    JiraTaskDetails,
+    JiraTaskRequest,
+    fetch_jira_task as _fetch_jira_task,
+)
 
 # Import providers for their side-effect registrations.
 from . import github as _github_provider  # noqa: F401
 from . import jira as _jira_provider  # noqa: F401
+
 
 class IssueActivities:
     """Bundle of issue-tracker activities (Jira fetch + generic reader)."""

@@ -20,7 +20,9 @@ async def test_read_issue_routes_to_jira(monkeypatch):
         summary="Summary",
         description="Body",
         status="To Do",
-        comments=[IssueComment(id="1", author="alice", created=None, updated=None, body="hi")],
+        comments=[
+            IssueComment(id="1", author="alice", created=None, updated=None, body="hi")
+        ],
     )
 
     async def fake_fetch(request: JiraTaskRequest) -> IssueDetails:
@@ -32,10 +34,14 @@ async def test_read_issue_routes_to_jira(monkeypatch):
     monkeypatch.setenv("JIRA_EMAIL", "dev@example.com")
     monkeypatch.setenv("JIRA_API_TOKEN", "token")
 
-    result = await read_issue(IssueRequest(issue_url="https://example.atlassian.net/browse/ABC-123"))
+    result = await read_issue(
+        IssueRequest(issue_url="https://example.atlassian.net/browse/ABC-123")
+    )
 
     assert result == expected
-    assert captured["request"].task_url == "https://example.atlassian.net/browse/ABC-123"
+    assert (
+        captured["request"].task_url == "https://example.atlassian.net/browse/ABC-123"
+    )
 
 
 @pytest.mark.asyncio
@@ -75,7 +81,9 @@ async def test_github_issue_provider_fetches_issue(monkeypatch):
         return func(*args, **kwargs)
 
     monkeypatch.setattr("agentsflow.activities.issues.github.Github", FakeGithub)
-    monkeypatch.setattr("agentsflow.activities.issues.github.asyncio.to_thread", immediate_to_thread)
+    monkeypatch.setattr(
+        "agentsflow.activities.issues.github.asyncio.to_thread", immediate_to_thread
+    )
 
     monkeypatch.setenv("GITHUB_TOKEN", "ghp_token")
 

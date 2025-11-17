@@ -32,7 +32,9 @@ from .sdlc import (
 class AgentActivities:
     """Activities involving Claude ACP sessions and LLM planning agents."""
 
-    def __init__(self, *, claude_binary: str | None = None, auto_approve: bool = True) -> None:
+    def __init__(
+        self, *, claude_binary: str | None = None, auto_approve: bool = True
+    ) -> None:
         self._claude_binary = claude_binary
         self._auto_approve = auto_approve
 
@@ -99,6 +101,7 @@ class AgentActivities:
             self.run_review_agent,
             self.run_release_agent,
         ]
+
 
 __all__ = [
     "ClaudeACPRequest",

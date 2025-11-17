@@ -10,7 +10,9 @@ def test_build_task_payload_filters_empty_comments() -> None:
         description="Detailed description",
         status="To Do",
         comments=[
-            JiraComment(id="1", author="alice", created=None, updated=None, body=" Looks good "),
+            JiraComment(
+                id="1", author="alice", created=None, updated=None, body=" Looks good "
+            ),
             JiraComment(id="2", author="bob", created=None, updated=None, body=""),
             JiraComment(id="3", author="carol", created=None, updated=None, body=None),
         ],

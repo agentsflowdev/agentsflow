@@ -24,11 +24,18 @@ class WorkerSettings(BaseSettings):
     claude_binary: str | None = Field(default=None, alias="CLAUDE_CODE_BIN")
     claude_auto_approve: bool = Field(default=True, alias="CLAUDE_AUTO_APPROVE")
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", populate_by_name=True, extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        populate_by_name=True,
+        extra="ignore",
+    )
 
 
 def _parse_args(argv: list[str], defaults: WorkerSettings) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Start the AgentsFlow Temporal worker.")
+    parser = argparse.ArgumentParser(
+        description="Start the AgentsFlow Temporal worker."
+    )
     parser.add_argument(
         "--address",
         default=defaults.address,

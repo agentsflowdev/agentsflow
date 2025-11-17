@@ -66,7 +66,9 @@ class MockClaude:
         self._scenario = scenario
         self._stage_counts: defaultdict[str, int] = defaultdict(int)
 
-    def _detect_stage(self, prompt: str) -> Literal["implementation", "tests", "review"]:
+    def _detect_stage(
+        self, prompt: str
+    ) -> Literal["implementation", "tests", "review"]:
         if "Focus exclusively on automated tests" in prompt:
             return "tests"
         if "Perform a thorough code review" in prompt:
@@ -120,7 +122,9 @@ class FakeEvaluationAgent:
         else:
             result = self._last_tests if is_tests_prompt else self._last_impl
             if result is None:
-                raise AssertionError("Evaluation agent exhausted with no fallback result")
+                raise AssertionError(
+                    "Evaluation agent exhausted with no fallback result"
+                )
         return FakeAgentResult(result)
 
 
@@ -152,7 +156,9 @@ async def _run_workflow_with_mocks(
     external_settings = TemporalTestSettings.from_env()
 
     @activity.defn(name="create_git_worktree")
-    async def create_git_worktree_activity(request: GitWorktreeRequest) -> GitWorktreeResult:
+    async def create_git_worktree_activity(
+        request: GitWorktreeRequest,
+    ) -> GitWorktreeResult:
         return scenario.git_result
 
     @activity.defn(name="read_issue")
@@ -164,7 +170,9 @@ async def _run_workflow_with_mocks(
         return await mock_claude(request)
 
     @activity.defn(name="finalize_git_changes")
-    async def finalize_git_changes_activity(request: FinalizeGitRequest) -> FinalizeGitResult:
+    async def finalize_git_changes_activity(
+        request: FinalizeGitRequest,
+    ) -> FinalizeGitResult:
         scenario.finalize_requests.append(request)
         result = FinalizeGitResult(
             branch_name=request.branch_name,
@@ -288,12 +296,28 @@ async def test_workflow_retries_claude_until_checks_pass(monkeypatch):
 
     evaluation_agent = FakeEvaluationAgent(
         implementation_outputs=[
-            EvaluationOutput(task_implemented=False, automated_tests_implemented=False, reasoning="Null inputs still fail"),
-            EvaluationOutput(task_implemented=True, automated_tests_implemented=False, reasoning="Implementation complete; tests missing"),
+            EvaluationOutput(
+                task_implemented=False,
+                automated_tests_implemented=False,
+                reasoning="Null inputs still fail",
+            ),
+            EvaluationOutput(
+                task_implemented=True,
+                automated_tests_implemented=False,
+                reasoning="Implementation complete; tests missing",
+            ),
         ],
         test_outputs=[
-            EvaluationOutput(task_implemented=True, automated_tests_implemented=False, reasoning="Tests still fail"),
-            EvaluationOutput(task_implemented=True, automated_tests_implemented=True, reasoning="All tests pass"),
+            EvaluationOutput(
+                task_implemented=True,
+                automated_tests_implemented=False,
+                reasoning="Tests still fail",
+            ),
+            EvaluationOutput(
+                task_implemented=True,
+                automated_tests_implemented=True,
+                reasoning="All tests pass",
+            ),
         ],
     )
     review_agent = FakeReviewAgent(
@@ -321,7 +345,7 @@ async def test_workflow_retries_claude_until_checks_pass(monkeypatch):
                 files_to_change=["src/toggle.py"],
                 testing_considerations=["pytest::tests/test_toggle.py"],
             )
-    )
+        )
 
     async def test_summary(prompt, **_kwargs):
         return FakeAgentResult(
@@ -362,11 +386,16 @@ async def test_workflow_retries_claude_until_checks_pass(monkeypatch):
 
     assert result.implementation.summary == "Implemented null handling for toggle."
     assert result.evaluation.automated_tests_implemented is True
-    assert result.test_plan is not None and "pytest" in result.test_plan.tooling_notes[0]
+    assert (
+        result.test_plan is not None and "pytest" in result.test_plan.tooling_notes[0]
+    )
     assert result.review.approval is True
     assert result.release_plan.branch_name == "feature/abc-123-null-toggle"
     assert scenario.finalize_requests
-    assert scenario.finalize_requests[0].commit_message == "feat: handle null inputs in toggle"
+    assert (
+        scenario.finalize_requests[0].commit_message
+        == "feat: handle null inputs in toggle"
+    )
     assert result.committed_branch == scenario.finalize_requests[0].branch_name
     assert result.committed_sha == scenario.finalize_results[0].commit_sha
     assert result.commit_pushed is False
@@ -409,11 +438,23 @@ async def test_workflow_fails_when_review_never_approves(monkeypatch):
 
     evaluation_agent = FakeEvaluationAgent(
         implementation_outputs=[
-            EvaluationOutput(task_implemented=False, automated_tests_implemented=False, reasoning="Validation missing"),
-            EvaluationOutput(task_implemented=True, automated_tests_implemented=True, reasoning="Implementation done"),
+            EvaluationOutput(
+                task_implemented=False,
+                automated_tests_implemented=False,
+                reasoning="Validation missing",
+            ),
+            EvaluationOutput(
+                task_implemented=True,
+                automated_tests_implemented=True,
+                reasoning="Implementation done",
+            ),
         ],
         test_outputs=[
-            EvaluationOutput(task_implemented=True, automated_tests_implemented=True, reasoning="Tests pass"),
+            EvaluationOutput(
+                task_implemented=True,
+                automated_tests_implemented=True,
+                reasoning="Tests pass",
+            ),
         ],
     )
     review_agent = FakeReviewAgent(

@@ -64,7 +64,9 @@ def _create_git_worktree(request: GitWorktreeRequest) -> GitWorktreeResult:
         raise ValueError("The provided path is not a valid git repository.") from exc
     except GitCommandError as exc:
         detail = exc.stderr or exc.stdout or str(exc)
-        raise RuntimeError(f"Git error while creating worktree: {detail.strip()}") from exc
+        raise RuntimeError(
+            f"Git error while creating worktree: {detail.strip()}"
+        ) from exc
     except Exception:
         # Let unexpected exceptions bubble up after cleanup.
         raise
@@ -89,7 +91,8 @@ async def create_git_worktree(request: GitWorktreeRequest) -> GitWorktreeResult:
         result = await asyncio.to_thread(_create_git_worktree, request)
     except Exception:
         activity.logger.exception(
-            "Failed to create git worktree", extra={"repository": request.repository, "reference": reference}
+            "Failed to create git worktree",
+            extra={"repository": request.repository, "reference": reference},
         )
         raise
 

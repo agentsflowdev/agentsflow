@@ -118,7 +118,9 @@ class SDLCWorkflow:
             session_kind: Literal["coding", "review"],
         ) -> ClaudeACPResponse:
             nonlocal coding_session_id, review_session_id
-            session_id = coding_session_id if session_kind == "coding" else review_session_id
+            session_id = (
+                coding_session_id if session_kind == "coding" else review_session_id
+            )
             response = await workflow.execute_activity(
                 "claude_code_acp",
                 ClaudeACPRequest(
@@ -287,7 +289,9 @@ class SDLCWorkflow:
 
                     review = await _run_agent_activity(
                         "run_review_agent",
-                        _render_review_evaluation_prompt(task_payload, review_response.message),
+                        _render_review_evaluation_prompt(
+                            task_payload, review_response.message
+                        ),
                         ReviewOutput,
                     )
 
@@ -504,7 +508,7 @@ def _render_implementation_summary_prompt(
         _format_task_section(task),
         "Claude Code ACP sessions:",
         transcript or "(no transcript)",
-        "Return an ImplementationOutput capturing the implemented behaviour, key steps, touched files, and testing considerations."
+        "Return an ImplementationOutput capturing the implemented behaviour, key steps, touched files, and testing considerations.",
     ]
     return "\n\n".join(parts)
 
@@ -521,7 +525,7 @@ def _render_test_summary_prompt(
         _format_task_section(task),
         "Claude Code ACP testing transcripts:",
         transcript or "(no dedicated testing transcript)",
-        "Summarise the automated tests that now exist and respond with TestPlanOutput."
+        "Summarise the automated tests that now exist and respond with TestPlanOutput.",
     ]
     return "\n\n".join(parts)
 
