@@ -41,6 +41,20 @@ STOP_SEGMENTS = {
 }
 
 
+def _jira_credentials_available() -> bool:
+    return bool(os.environ.get(JIRA_EMAIL_ENV) and os.environ.get(JIRA_API_TOKEN_ENV))
+
+
+def _require_jira_credentials() -> tuple[str, str]:
+    jira_email = os.environ.get(JIRA_EMAIL_ENV)
+    jira_api_token = os.environ.get(JIRA_API_TOKEN_ENV)
+    if not jira_email or not jira_api_token:
+        raise ValueError(
+            f"Jira provider requires {JIRA_EMAIL_ENV} and {JIRA_API_TOKEN_ENV} environment variables."
+        )
+    return jira_email, jira_api_token
+
+
 @dataclass
 class JiraTaskRequest:
     task_url: str
@@ -399,15 +413,13 @@ class JiraIssueProvider(IssueProvider):
         host = urlparse(issue_url).netloc.lower()
         return "atlassian.net" in host or "jira" in host
 
+    def is_configured(self) -> bool:
+        return _jira_credentials_available()
+
     async def read(self, request: IssueRequest) -> IssueDetails:
-        jira_email = os.environ.get(JIRA_EMAIL_ENV)
-        jira_api_token = os.environ.get(JIRA_API_TOKEN_ENV)
+        jira_email, jira_api_token = _require_jira_credentials()
         timeout_override = os.environ.get(JIRA_TIMEOUT_ENV)
         timeout_seconds = _coerce_timeout(timeout_override, request.timeout_seconds)
-        if not jira_email or not jira_api_token:
-            raise ValueError(
-                f"Jira provider requires {JIRA_EMAIL_ENV} and {JIRA_API_TOKEN_ENV} environment variables."
-            )
         jira_request = JiraTaskRequest(
             task_url=request.issue_url,
             jira_email=jira_email,

@@ -45,6 +45,39 @@ async def test_read_issue_routes_to_jira(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_read_issue_skips_unconfigured_providers(monkeypatch):
+    monkeypatch.delenv("JIRA_EMAIL", raising=False)
+    monkeypatch.delenv("JIRA_API_TOKEN", raising=False)
+
+    expected = IssueDetails(
+        issue_key="octo/widgets#99",
+        issue_url="https://github.com/octo/widgets/issues/99",
+        summary="Fallback",
+        description="",
+        status="open",
+        comments=[],
+    )
+    captured: dict[str, IssueRequest] = {}
+
+    async def fake_github_read(self, request: IssueRequest) -> IssueDetails:
+        captured["request"] = request
+        return expected
+
+    monkeypatch.setattr(
+        "agentsflow.activities.issues.github.GitHubIssueProvider.read",
+        fake_github_read,
+        raising=False,
+    )
+
+    result = await read_issue(
+        IssueRequest(issue_url="https://github.com/octo/widgets/issues/99")
+    )
+
+    assert result == expected
+    assert captured["request"].issue_url.endswith("/99")
+
+
+@pytest.mark.asyncio
 async def test_github_issue_provider_fetches_issue(monkeypatch):
     class FakeComment:
         def __init__(self) -> None:
@@ -102,3 +135,16 @@ async def test_github_issue_provider_fetches_issue(monkeypatch):
 async def test_read_issue_errors_when_no_provider():
     with pytest.raises(ValueError):
         await read_issue(IssueRequest(issue_url="https://example.com/issues/1"))
+
+
+@pytest.mark.asyncio
+async def test_read_issue_reports_unconfigured_provider(monkeypatch):
+    monkeypatch.delenv("JIRA_EMAIL", raising=False)
+    monkeypatch.delenv("JIRA_API_TOKEN", raising=False)
+
+    with pytest.raises(ValueError) as excinfo:
+        await read_issue(
+            IssueRequest(issue_url="https://example.atlassian.net/browse/ABC-123")
+        )
+
+    assert "not configured" in str(excinfo.value)
