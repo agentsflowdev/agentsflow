@@ -122,9 +122,7 @@ class AgentActivities:
 
     @activity.defn(name="run_tests_agent")
     async def run_tests_agent(self, prompt: str) -> TestPlanOutput:
-        activity.logger.info(
-            "Running tests agent", extra={"prompt_chars": len(prompt)}
-        )
+        activity.logger.info("Running tests agent", extra={"prompt_chars": len(prompt)})
         result = await _run_tests_agent(prompt)
         activity.logger.info(
             "Tests agent completed",

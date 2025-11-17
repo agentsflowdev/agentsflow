@@ -402,7 +402,9 @@ class SDLCWorkflow:
                     _render_test_summary_prompt(task_payload, claude_runs),
                     TestPlanOutput,
                 )
-                logger.info("Test plan produced", extra={"cases": len(test_plan.test_cases)})
+                logger.info(
+                    "Test plan produced", extra={"cases": len(test_plan.test_cases)}
+                )
             else:
                 test_plan = None
 
