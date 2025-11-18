@@ -8,13 +8,13 @@ from __future__ import annotations
 
 import asyncio
 from pathlib import Path
-import shutil
 import tempfile
 
 import git
 from git.exc import GitCommandError, InvalidGitRepositoryError, NoSuchPathError
 from temporalio import activity
 
+from agentsflow.utils.filesystem import CLONE_PREFIX, safe_remove_tree
 from .models import GitWorktreeRequest, GitWorktreeResult
 
 
@@ -73,9 +73,16 @@ def _create_git_worktree(request: GitWorktreeRequest) -> GitWorktreeResult:
     finally:
         if not success:
             if worktree_dir is not None and worktree_dir.exists():
-                shutil.rmtree(worktree_dir, ignore_errors=True)
+                safe_remove_tree(
+                    worktree_dir,
+                    reason="worktree creation failed",
+                )
             if clone_dir is not None and clone_dir.exists():
-                shutil.rmtree(clone_dir, ignore_errors=True)
+                safe_remove_tree(
+                    clone_dir,
+                    reason="temporary clone cleanup",
+                    prefixes=(CLONE_PREFIX,),
+                )
 
 
 async def create_git_worktree(request: GitWorktreeRequest) -> GitWorktreeResult:

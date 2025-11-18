@@ -8,7 +8,52 @@ from pathlib import Path
 import git
 from git.exc import GitCommandError, InvalidGitRepositoryError, NoSuchPathError
 from temporalio import activity
+from agentsflow.utils.filesystem import safe_remove_tree
 from .models import FinalizeGitRequest, FinalizeGitResult
+
+
+def _cleanup_worktree(worktree_path: Path) -> None:
+    """Remove a git worktree from the filesystem and repo metadata."""
+
+    if not worktree_path.exists():
+        return
+
+    git_removed = False
+    try:
+        repo = git.Repo(worktree_path)
+    except (InvalidGitRepositoryError, NoSuchPathError):
+        safe_remove_tree(
+            worktree_path,
+            reason="invalid worktree repository",
+            logger=activity.logger,
+        )
+        return
+
+    try:
+        common_dir = Path(repo.git.rev_parse("--git-common-dir")).resolve()
+        repo_root = common_dir.parent
+        if not repo_root.exists():
+            raise FileNotFoundError(f"Common git dir parent missing: {repo_root}")
+        git_cmd = git.Git(str(repo_root))
+        git_cmd.worktree("remove", "--force", str(worktree_path))
+        git_removed = True
+        activity.logger.info(
+            "Removed git worktree via git",
+            extra={"worktree_path": str(worktree_path)},
+        )
+    except Exception as exc:  # noqa: BLE001 - log and fallback to safe delete
+        detail = str(exc)
+        activity.logger.warning(
+            "Failed to remove git worktree via git",
+            extra={"worktree_path": str(worktree_path), "detail": detail},
+        )
+    finally:
+        if not git_removed:
+            safe_remove_tree(
+                worktree_path,
+                reason="git metadata cleanup failed",
+                logger=activity.logger,
+            )
 
 
 def _finalize_git_changes(request: FinalizeGitRequest) -> FinalizeGitResult:
@@ -73,6 +118,7 @@ def _finalize_git_changes(request: FinalizeGitRequest) -> FinalizeGitResult:
                 "pushed": pushed,
             },
         )
+        _cleanup_worktree(worktree_path)
         return FinalizeGitResult(
             branch_name=branch_name, commit_sha=commit_sha, pushed=pushed
         )
