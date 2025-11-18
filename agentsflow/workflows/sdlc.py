@@ -551,12 +551,14 @@ def _render_claude_prompt(
         base.append(
             "Implement the task end-to-end. Stay tightly scoped to the acceptance criteria—avoid creating placeholder assets, "
             "renaming files, or adding new dependencies unless they are essential to the solution. "
-            "Summarise the work by listing each file you touched alongside the intent of the change."
+            "Summarise the work by listing each file you touched alongside the intent of the change. "
+            "Before you conclude, run the repository's existing linting and automated test commands that validate the implementation and include their outcomes."
         )
     elif stage == "tests":
         base.append(
             "Focus exclusively on automated tests. Limit edits to test code and supporting fixtures unless a minimal production "
-            "change is strictly required for the tests to run. Report which tests you created or updated and any commands you ran."
+            "change is strictly required for the tests to run. Report which tests you created or updated and any commands you ran. "
+            "Run the available linting and test suites (e.g., pytest, npm test, go test) to prove the new tests pass and capture their results."
         )
     else:  # review
         base.append(
