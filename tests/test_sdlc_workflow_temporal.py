@@ -211,7 +211,9 @@ async def _run_workflow_with_mocks(
         return await _call_stub(release_agent, prompt)
 
     if external_settings is None:
-        env = await WorkflowEnvironment.start_time_skipping()
+        env = await WorkflowEnvironment.start_time_skipping(
+            data_converter=pydantic_data_converter
+        )
         client = env.client
         shutdown_cb = env.shutdown
         task_queue = "test-sdlc"

@@ -53,6 +53,8 @@ class EvaluationOutput(BaseModel):
 class TestPlanOutput(BaseModel):
     """Follow-up plan ensuring tests exist."""
 
+    __test__ = False  # prevent pytest from collecting this Pydantic model as a test class
+
     summary: str = Field(
         ..., description="High-level explanation of the testing approach."
     )
