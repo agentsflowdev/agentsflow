@@ -65,7 +65,6 @@ class SDLCWorkflowInput(BaseModel):
 class SDLCWorkflowOutput(BaseModel):
     """Aggregated result of the SDLC workflow."""
 
-    worktree_path: str
     repository_path: str
     reference: str
     coding_session_id: str | None
@@ -493,7 +492,6 @@ class SDLCWorkflow:
                 )
 
         output = SDLCWorkflowOutput(
-            worktree_path=git_result.worktree_path,
             repository_path=git_result.repository_path,
             reference=git_result.reference,
             coding_session_id=coding_session_id,

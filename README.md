@@ -189,7 +189,7 @@ Workflow stages
    When everything passes, additional agents perform the review and outline the
    release plan. These agents never modify the repository—they only analyse the
    coding agent’s output.
-4. **Structured result** – the workflow returns the worktree paths alongside the
+4. **Structured result** – the workflow returns the repository path alongside the
    Claude transcript and all verification artefacts (`ImplementationOutput`,
    `EvaluationOutput`, `TestPlanOutput`, `ReviewOutput`, `ReleasePlanOutput`).
 
