@@ -6,14 +6,14 @@ import asyncio
 import contextlib
 import os
 import shutil
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable
 
 from acp import (
+    PROTOCOL_VERSION,
     Client,
     ClientSideConnection,
-    PROTOCOL_VERSION,
     RequestError,
     text_block,
 )
@@ -41,9 +41,9 @@ from acp.schema import (
     RequestPermissionResponse,
     ResourceContentBlock,
     SessionNotification,
-    TextContentBlock,
     TerminalOutputRequest,
     TerminalOutputResponse,
+    TextContentBlock,
     WaitForTerminalExitRequest,
     WaitForTerminalExitResponse,
     WriteTextFileRequest,
@@ -72,14 +72,12 @@ class ClaudeACPResponse:
 class _ClaudeSession:
     process: asyncio.subprocess.Process
     connection: ClientSideConnection
-    client: "_ClaudeACPClient"
+    client: _ClaudeACPClient
     session_id: str
 
     async def send_prompt(self, prompt: str) -> tuple[str, PromptResponse]:
         self.client.start_prompt()
-        response = await self.connection.prompt(
-            PromptRequest(sessionId=self.session_id, prompt=[text_block(prompt)])
-        )
+        response = await self.connection.prompt(PromptRequest(sessionId=self.session_id, prompt=[text_block(prompt)]))
         message = await self.client.consume_message()
         return message, response
 
@@ -125,12 +123,8 @@ class _SessionRegistry:
                 process.terminate()
             raise RuntimeError("claude-code-acp process does not expose stdio pipes.")
 
-        client_impl = _ClaudeACPClient(
-            auto_approve=auto_approve, workspace_dir=workspace_dir
-        )
-        connection = ClientSideConnection(
-            lambda _agent: client_impl, process.stdin, process.stdout
-        )
+        client_impl = _ClaudeACPClient(auto_approve=auto_approve, workspace_dir=workspace_dir)
+        connection = ClientSideConnection(lambda _agent: client_impl, process.stdin, process.stdout)
 
         try:
             await connection.initialize(
@@ -166,7 +160,7 @@ class _SessionRegistry:
 _session_registry = _SessionRegistry()
 
 
-class _ClaudeACPClient(Client):
+class _ClaudeACPClient(Client):  # type: ignore[misc]
     def __init__(self, *, auto_approve: bool, workspace_dir: Path) -> None:
         self._auto_approve = auto_approve
         self._workspace_dir = workspace_dir
@@ -186,7 +180,7 @@ class _ClaudeACPClient(Client):
             self._current_chunks = []
             return message
 
-    async def requestPermission(  # type: ignore[override]
+    async def requestPermission(
         self,
         params: RequestPermissionRequest,
     ) -> RequestPermissionResponse:
@@ -195,11 +189,9 @@ class _ClaudeACPClient(Client):
         option = _pick_preferred_option(params.options)
         if option is None:
             return RequestPermissionResponse(outcome=DeniedOutcome(outcome="cancelled"))
-        return RequestPermissionResponse(
-            outcome=AllowedOutcome(optionId=option.optionId, outcome="selected")
-        )
+        return RequestPermissionResponse(outcome=AllowedOutcome(optionId=option.optionId, outcome="selected"))
 
-    async def writeTextFile(  # type: ignore[override]
+    async def writeTextFile(
         self,
         params: WriteTextFileRequest,
     ) -> WriteTextFileResponse:
@@ -208,49 +200,47 @@ class _ClaudeACPClient(Client):
         path.write_text(params.content)
         return WriteTextFileResponse()
 
-    async def readTextFile(  # type: ignore[override]
+    async def readTextFile(
         self,
         params: ReadTextFileRequest,
     ) -> ReadTextFileResponse:
         path = self._resolve_workspace_path(params.path)
         if not path.exists():
-            raise RequestError.invalid_params(
-                {"path": params.path, "reason": "file does not exist"}
-            )
+            raise RequestError.invalid_params({"path": params.path, "reason": "file does not exist"})
         text = path.read_text()
         return ReadTextFileResponse(content=text)
 
-    async def createTerminal(  # type: ignore[override]
+    async def createTerminal(
         self,
         params: CreateTerminalRequest,
     ) -> CreateTerminalResponse:
         return CreateTerminalResponse(terminalId="term-1")
 
-    async def terminalOutput(  # type: ignore[override]
+    async def terminalOutput(
         self,
         params: TerminalOutputRequest,
     ) -> TerminalOutputResponse:
         return TerminalOutputResponse(output="", truncated=False)
 
-    async def waitForTerminalExit(  # type: ignore[override]
+    async def waitForTerminalExit(
         self,
         params: WaitForTerminalExitRequest,
     ) -> WaitForTerminalExitResponse:
         return WaitForTerminalExitResponse()
 
-    async def releaseTerminal(  # type: ignore[override]
+    async def releaseTerminal(
         self,
         params: ReleaseTerminalRequest,
     ) -> ReleaseTerminalResponse:
         return ReleaseTerminalResponse()
 
-    async def killTerminal(  # type: ignore[override]
+    async def killTerminal(
         self,
         params: KillTerminalCommandRequest,
     ) -> KillTerminalCommandResponse:
         return KillTerminalCommandResponse()
 
-    async def sessionUpdate(  # type: ignore[override]
+    async def sessionUpdate(
         self,
         params: SessionNotification,
     ) -> None:
@@ -269,26 +259,22 @@ class _ClaudeACPClient(Client):
         else:
             path = path.resolve()
         if not _is_within_root(path, self._workspace_dir):
-            raise RequestError.invalid_params(
-                {"path": requested, "reason": "path outside workspace"}
-            )
+            raise RequestError.invalid_params({"path": requested, "reason": "path outside workspace"})
         return path
 
 
 def _extract_text(content: object) -> str:
     if isinstance(content, TextContentBlock):
-        return content.text
+        return str(content.text)
     if isinstance(content, ResourceContentBlock):
         return content.uri or content.name or ""
     if isinstance(content, EmbeddedResourceContentBlock):
         resource = content.resource
         text = getattr(resource, "text", None)
         if text:
-            return text
+            return str(text)
     if isinstance(content, dict):
-        text = content.get("text")  # type: ignore[union-attr]
-        if isinstance(text, str):
-            return text
+        return str(content.get("text", ""))
     if isinstance(content, list):
         parts = [_extract_text(item) for item in content]
         return "".join(part for part in parts if part)
@@ -344,9 +330,7 @@ def _resolve_claude_binary(binary: str | None) -> str:
     resolved = shutil.which("claude-code-acp")
     if resolved:
         return resolved
-    raise FileNotFoundError(
-        "Unable to locate `claude-code-acp` binary. Set ACP_CLAUDE_BIN or provide a path."
-    )
+    raise FileNotFoundError("Unable to locate `claude-code-acp` binary. Set ACP_CLAUDE_BIN or provide a path.")
 
 
 async def run_claude_code(request: ClaudeACPRequest) -> ClaudeACPResponse:
@@ -384,9 +368,7 @@ async def run_claude_code(request: ClaudeACPRequest) -> ClaudeACPResponse:
 
     if session is None:
         resolved_binary = _resolve_claude_binary(request.claude_binary)
-        auto_approve = (
-            request.auto_approve if request.auto_approve is not None else True
-        )
+        auto_approve = request.auto_approve if request.auto_approve is not None else True
         activity.logger.debug(
             "Launching Claude ACP session",
             extra={

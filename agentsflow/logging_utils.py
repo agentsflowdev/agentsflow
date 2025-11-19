@@ -30,9 +30,7 @@ def _normalize_log_level(value: Any) -> int:
     candidate = getattr(logging, text.upper(), None)
     if isinstance(candidate, int):
         return candidate
-    _logger.warning(
-        "Invalid log level '%s'; defaulting to %s.", text, DEFAULT_LOG_LEVEL
-    )
+    _logger.warning("Invalid log level '%s'; defaulting to %s.", text, DEFAULT_LOG_LEVEL)
     return _DEFAULT_NUMERIC_LEVEL
 
 

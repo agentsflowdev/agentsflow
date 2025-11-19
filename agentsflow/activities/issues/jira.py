@@ -5,9 +5,10 @@ from __future__ import annotations
 import asyncio
 import os
 import re
-from dataclasses import dataclass
+from collections.abc import Iterable, Sequence
 from contextlib import suppress
-from typing import Any, Iterable, Sequence
+from dataclasses import dataclass
+from typing import Any
 from urllib.parse import parse_qs, urlparse
 
 from jira import JIRA
@@ -49,9 +50,7 @@ def _require_jira_credentials() -> tuple[str, str]:
     jira_email = os.environ.get(JIRA_EMAIL_ENV)
     jira_api_token = os.environ.get(JIRA_API_TOKEN_ENV)
     if not jira_email or not jira_api_token:
-        raise ValueError(
-            f"Jira provider requires {JIRA_EMAIL_ENV} and {JIRA_API_TOKEN_ENV} environment variables."
-        )
+        raise ValueError(f"Jira provider requires {JIRA_EMAIL_ENV} and {JIRA_API_TOKEN_ENV} environment variables.")
     return jira_email, jira_api_token
 
 
@@ -71,7 +70,7 @@ def _iter_url_values(path: str) -> Iterable[str]:
     return [segment for segment in path.split("/") if segment]
 
 
-def _candidate_base_urls(parsed_url, issue_key: str) -> list[str]:
+def _candidate_base_urls(parsed_url: Any, issue_key: str) -> list[str]:
     base = f"{parsed_url.scheme}://{parsed_url.netloc}".rstrip("/")
     candidates = [base]
     segments = [segment for segment in _iter_url_values(parsed_url.path) if segment]
@@ -136,9 +135,7 @@ def _adf_to_text(node: Any) -> str:
     if isinstance(node, str):
         return node
     if isinstance(node, list):
-        return "\n".join(
-            part for part in (_adf_to_text(child) for child in node) if part
-        )
+        return "\n".join(part for part in (_adf_to_text(child) for child in node) if part)
     if isinstance(node, dict):
         node_type = node.get("type")
         content = node.get("content") or []
@@ -150,7 +147,7 @@ def _adf_to_text(node: Any) -> str:
                     href = (mark.get("attrs") or {}).get("href")
                     if href:
                         text = f"{text} ({href})" if text else href
-            return text
+            return str(text)
 
         if node_type == "mention":
             attrs = node.get("attrs") or {}
@@ -267,9 +264,7 @@ def _format_jira_error(exc: JIRAError, issue_key: str) -> str:
     status = getattr(exc, "status_code", None)
     text = (getattr(exc, "text", "") or str(exc)).strip()
     if status:
-        base = (
-            f"Jira API returned status {status} while retrieving issue '{issue_key}'."
-        )
+        base = f"Jira API returned status {status} while retrieving issue '{issue_key}'."
     else:
         base = f"Jira API error while retrieving issue '{issue_key}'."
     if text:
@@ -291,9 +286,7 @@ def _fetch_issue_details(
     for base_url in base_candidates:
         client: JIRA | None = None
         try:
-            client = JIRA(
-                server=base_url, basic_auth=(email, token), timeout=timeout_seconds
-            )
+            client = JIRA(server=base_url, basic_auth=(email, token), timeout=timeout_seconds)
             issue = client.issue(issue_key, expand="renderedFields,names")
             comments = client.comments(issue)
 
@@ -309,12 +302,8 @@ def _fetch_issue_details(
                         {
                             "id": getattr(comment, "id", None),
                             "author": {
-                                "displayName": getattr(author, "displayName", "")
-                                if author
-                                else "",
-                                "emailAddress": getattr(author, "emailAddress", "")
-                                if author
-                                else "",
+                                "displayName": getattr(author, "displayName", "") if author else "",
+                                "emailAddress": getattr(author, "emailAddress", "") if author else "",
                             },
                             "created": getattr(comment, "created", None),
                             "updated": getattr(comment, "updated", None),
@@ -333,15 +322,13 @@ def _fetch_issue_details(
         finally:
             if client is not None:
                 with suppress(Exception):
-                    client.close()
+                    client.close()  # type: ignore[no-untyped-call]
 
     if isinstance(last_error, JIRAError):
         raise last_error
     if last_error is not None:
         raise last_error
-    raise RuntimeError(
-        f"Failed to retrieve Jira issue '{issue_key}' for unknown reasons."
-    )
+    raise RuntimeError(f"Failed to retrieve Jira issue '{issue_key}' for unknown reasons.")
 
 
 async def fetch_jira_task(request: JiraTaskRequest) -> IssueDetails:
@@ -352,9 +339,7 @@ async def fetch_jira_task(request: JiraTaskRequest) -> IssueDetails:
     if not task_url:
         raise ValueError("Task URL is required.")
     if not email or not token:
-        raise ValueError(
-            "Both Jira account email/username and API token must be provided."
-        )
+        raise ValueError("Both Jira account email/username and API token must be provided.")
 
     issue_key, base_candidates, original = _extract_issue_key(task_url)
     activity.logger.debug(

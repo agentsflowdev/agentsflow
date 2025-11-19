@@ -11,17 +11,16 @@ import uuid
 from typing import Any
 
 from pydantic import Field
-from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic_ai.durable_exec.temporal import PydanticAIPlugin
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from temporalio.client import Client, WorkflowHandle
 from temporalio.contrib.pydantic import pydantic_data_converter
 
-from agentsflow.workflows import SDLCWorkflow, SDLCWorkflowInput, SDLCWorkflowOutput
 from agentsflow.logging_utils import (
     DEFAULT_LOG_LEVEL,
-    LOG_LEVEL_ENV,
     configure_logging,
 )
+from agentsflow.workflows import SDLCWorkflow, SDLCWorkflowInput, SDLCWorkflowOutput
 
 
 class CLISettings(BaseSettings):
@@ -37,7 +36,7 @@ class CLISettings(BaseSettings):
     model: str | None = Field(default=None, alias="SDLC_AGENT_MODEL")
     branch_name: str | None = Field(default=None, alias="SDLC_BRANCH_NAME")
     json_output: bool = Field(default=False, alias="SDLC_JSON_OUTPUT")
-    log_level: str = Field(default=DEFAULT_LOG_LEVEL, alias=LOG_LEVEL_ENV)
+    log_level: str = Field(default=DEFAULT_LOG_LEVEL, alias="AGENTSFLOW_LOG_LEVEL")
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -145,12 +144,12 @@ async def _start_workflow_handle(
         branch_name=args.branch_name,
     )
 
-    return await client.start_workflow(
+    return await client.start_workflow(  # type: ignore[no-any-return]
         SDLCWorkflow.run,
         input_payload,
         id=_generate_workflow_id(),
         task_queue=args.task_queue,
-    )
+    )  # type: ignore[call-overload]
 
 
 async def _await_workflow_result(
@@ -168,12 +167,12 @@ async def _await_workflow_result(
         run_id=run_id,
         result_type=SDLCWorkflowOutput,
     )
-    return await handle.result()
+    return await handle.result()  # type: ignore[no-any-return]
 
 
 async def _run_workflow(args: argparse.Namespace) -> SDLCWorkflowOutput:
     handle = await _start_workflow_handle(args)
-    return await handle.result()
+    return await handle.result()  # type: ignore[no-any-return]
 
 
 def _print_result(result: SDLCWorkflowOutput, as_json: bool) -> None:

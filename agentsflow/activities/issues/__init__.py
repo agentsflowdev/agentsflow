@@ -2,26 +2,31 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from temporalio import activity
 
+# Import providers for their side-effect registrations.
+from . import github as _github_provider  # noqa: F401
+from . import jira as _jira_provider  # noqa: F401
+from .jira import (
+    JiraComment,
+    JiraTaskDetails,
+    JiraTaskRequest,
+)
+from .jira import (
+    fetch_jira_task as _fetch_jira_task,
+)
 from .models import IssueComment, IssueDetails
 from .reader import (
     IssueProvider,
     IssueRequest,
     list_issue_providers,
-    read_issue as _read_issue,
     register_issue_provider,
 )
-from .jira import (
-    JiraComment,
-    JiraTaskDetails,
-    JiraTaskRequest,
-    fetch_jira_task as _fetch_jira_task,
+from .reader import (
+    read_issue as _read_issue,
 )
-
-# Import providers for their side-effect registrations.
-from . import github as _github_provider  # noqa: F401
-from . import jira as _jira_provider  # noqa: F401
 
 
 class IssueActivities:
@@ -61,7 +66,7 @@ class IssueActivities:
         )
         return result
 
-    def activities(self) -> list:
+    def activities(self) -> list[Any]:
         return [self.fetch_jira_task, self.read_issue]
 
 

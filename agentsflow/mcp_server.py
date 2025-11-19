@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from types import SimpleNamespace
+import argparse
 from typing import Any
 
 from fastmcp import Context, FastMCP
@@ -18,7 +18,8 @@ mcp = FastMCP(
         "AgentsFlow exposes the SDLC Temporal workflow over MCP. Start the workflow with "
         "start_sdlc_workflow (issue_url + repository_path) to receive the workflow_id/run_id, then call "
         "await_sdlc_workflow_result with the workflow_id when you're ready to fetch the SDLCWorkflowOutput. "
-        "The repository_path argument must be the absolute filesystem path to the repo root (e.g., /Users/acme/src/app). "
+        "The repository_path argument must be the absolute filesystem path to the repo root "
+        "(e.g., /Users/acme/src/app). "
         "Authentication, Temporal connection details, and overrides are read from environment variables or .env."
     ),
 )
@@ -29,8 +30,8 @@ def _build_workflow_args(
     defaults: CLISettings,
     repository_path: str,
     issue_url: str,
-) -> SimpleNamespace:
-    return SimpleNamespace(
+) -> argparse.Namespace:
+    return argparse.Namespace(
         repository=repository_path,
         issue_url=issue_url,
         reference=defaults.reference,
@@ -56,9 +57,7 @@ async def _start_workflow_tool_impl(
         issue_url=issue_url,
     )
 
-    await ctx.info(
-        f"Submitting SDLC workflow for issue {issue_url} against repository path {repository_path}."
-    )
+    await ctx.info(f"Submitting SDLC workflow for issue {issue_url} against repository path {repository_path}.")
 
     handle = await _start_workflow_handle(args)
 
@@ -75,9 +74,7 @@ async def _start_workflow_tool_impl(
     }
 
     if remind_about_result:
-        await ctx.info(
-            "Workflow started. Call await_sdlc_workflow_result with the workflow_id to fetch the output."
-        )
+        await ctx.info("Workflow started. Call await_sdlc_workflow_result with the workflow_id to fetch the output.")
 
     return payload
 
