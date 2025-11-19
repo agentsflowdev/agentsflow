@@ -12,8 +12,8 @@ from temporalio.common import RetryPolicy
 from temporalio.exceptions import ApplicationError
 
 from agentsflow.activities import (
-    ClaudeACPRequest,
-    ClaudeACPResponse,
+    ACPRequest,
+    ACPResponse,
     FinalizeGitRequest,
     FinalizeGitResult,
     GitWorktreeRequest,
@@ -35,7 +35,7 @@ MAX_TEST_ATTEMPTS = 3
 MAX_REVIEW_ATTEMPTS = 3
 
 
-class ClaudeRun(BaseModel):
+class AgentRun(BaseModel):
     stage: Literal["implementation", "tests", "review"]
     prompt: str
     message: str
@@ -56,6 +56,10 @@ class SDLCWorkflowInput(BaseModel):
         default=None,
         description="Optional git branch name to write the committed changes to.",
     )
+    coding_agent_provider: Literal["claude", "gemini"] = Field(
+        default="claude",
+        description="Which coding agent to use (Claude or Gemini).",
+    )
 
 
 class SDLCWorkflowOutput(BaseModel):
@@ -64,7 +68,7 @@ class SDLCWorkflowOutput(BaseModel):
     repository_path: str
     reference: str
     coding_session_id: str | None
-    coding_stops: list[ClaudeRun]
+    coding_stops: list[AgentRun]
     jira: JiraTaskPayload
     implementation: ImplementationOutput
     evaluation: EvaluationOutput
@@ -127,33 +131,34 @@ class SDLCWorkflow:
 
         coding_session_id: str | None = None
         review_session_id: str | None = None
-        claude_runs: list[ClaudeRun] = []
+        agent_runs: list[AgentRun] = []
 
-        async def _invoke_claude(
+        async def _invoke_coding_agent(
             stage: Literal["implementation", "tests", "review"],
             prompt: str,
             *,
             session_kind: Literal["coding", "review"],
-        ) -> ClaudeACPResponse:
+        ) -> ACPResponse:
             nonlocal coding_session_id, review_session_id
             session_id = coding_session_id if session_kind == "coding" else review_session_id
             response = await workflow.execute_activity(
-                "claude_code_acp",
-                ClaudeACPRequest(
+                "run_acp_agent",
+                ACPRequest(
                     prompt=prompt,
+                    agent_type=params.coding_agent_provider,
                     session_id=session_id,
                     workspace_dir=git_result.worktree_path,
                 ),
                 start_to_close_timeout=timedelta(minutes=15),
                 retry_policy=RetryPolicy(maximum_attempts=1),
-                result_type=ClaudeACPResponse,
+                result_type=ACPResponse,
             )
             if session_kind == "coding":
                 coding_session_id = response.session_id
             else:
                 review_session_id = response.session_id
-            claude_runs.append(
-                ClaudeRun(
+            agent_runs.append(
+                AgentRun(
                     stage=stage,
                     prompt=prompt,
                     message=response.message,
@@ -207,13 +212,13 @@ class SDLCWorkflow:
                             "feedback_items": len(coding_feedback),
                         },
                     )
-                    coding_prompt = _render_claude_prompt(
+                    coding_prompt = _render_coding_prompt(
                         stage="implementation",
                         task=task_payload,
                         workspace_dir=git_result.worktree_path,
                         feedback=coding_feedback,
                     )
-                    coding_response = await _invoke_claude("implementation", coding_prompt, session_kind="coding")
+                    coding_response = await _invoke_coding_agent("implementation", coding_prompt, session_kind="coding")
                     evaluation = await _run_agent_activity(
                         "run_evaluation_agent",
                         _render_evaluation_prompt(
@@ -269,13 +274,13 @@ class SDLCWorkflow:
                                 "feedback_items": len(tests_feedback),
                             },
                         )
-                        tests_prompt = _render_claude_prompt(
+                        tests_prompt = _render_coding_prompt(
                             stage="tests",
                             task=task_payload,
                             workspace_dir=git_result.worktree_path,
                             feedback=tests_feedback,
                         )
-                        test_response = await _invoke_claude("tests", tests_prompt, session_kind="coding")
+                        test_response = await _invoke_coding_agent("tests", tests_prompt, session_kind="coding")
 
                         evaluation = await _run_agent_activity(
                             "run_evaluation_agent",
@@ -328,13 +333,13 @@ class SDLCWorkflow:
                             "feedback_items": len(review_feedback),
                         },
                     )
-                    review_prompt_text = _render_claude_prompt(
+                    review_prompt_text = _render_coding_prompt(
                         stage="review",
                         task=task_payload,
                         workspace_dir=git_result.worktree_path,
                         feedback=review_feedback,
                     )
-                    review_response = await _invoke_claude("review", review_prompt_text, session_kind="review")
+                    review_response = await _invoke_coding_agent("review", review_prompt_text, session_kind="review")
 
                     review = await _run_agent_activity(
                         "run_review_agent",
@@ -370,7 +375,7 @@ class SDLCWorkflow:
 
             implementation = await _run_agent_activity(
                 "run_implementation_agent",
-                _render_implementation_summary_prompt(task_payload, claude_runs),
+                _render_implementation_summary_prompt(task_payload, agent_runs),
                 ImplementationOutput,
             )
             if implementation is None:
@@ -382,7 +387,7 @@ class SDLCWorkflow:
             if evaluation.automated_tests_implemented:
                 test_plan = await _run_agent_activity(
                     "run_tests_agent",
-                    _render_test_summary_prompt(task_payload, claude_runs),
+                    _render_test_summary_prompt(task_payload, agent_runs),
                     TestPlanOutput,
                 )
                 logger.info("Test plan produced", extra={"cases": len(test_plan.test_cases)})
@@ -454,7 +459,7 @@ class SDLCWorkflow:
             if coding_session_id and coding_session_id not in closed_session_ids:
                 logger.info("Closing coding session", extra={"session_id": coding_session_id})
                 await workflow.execute_activity(
-                    "close_claude_session",
+                    "close_acp_session",
                     coding_session_id,
                     start_to_close_timeout=timedelta(minutes=1),
                     retry_policy=RetryPolicy(maximum_attempts=3),
@@ -463,7 +468,7 @@ class SDLCWorkflow:
             if review_session_id and review_session_id not in closed_session_ids:
                 logger.info("Closing review session", extra={"session_id": review_session_id})
                 await workflow.execute_activity(
-                    "close_claude_session",
+                    "close_acp_session",
                     review_session_id,
                     start_to_close_timeout=timedelta(minutes=1),
                     retry_policy=RetryPolicy(maximum_attempts=3),
@@ -473,7 +478,7 @@ class SDLCWorkflow:
             repository_path=git_result.repository_path,
             reference=git_result.reference,
             coding_session_id=coding_session_id,
-            coding_stops=claude_runs,
+            coding_stops=agent_runs,
             jira=task_payload,
             implementation=implementation,
             evaluation=evaluation,
@@ -509,7 +514,7 @@ def _build_task_payload(details: IssueDetails) -> JiraTaskPayload:
     )
 
 
-def _render_claude_prompt(
+def _render_coding_prompt(
     *,
     stage: Literal["implementation", "tests", "review"],
     task: JiraTaskPayload,
@@ -591,12 +596,12 @@ def _render_review_evaluation_prompt(task: JiraTaskPayload, transcript: str) -> 
     return "\n\n".join(parts)
 
 
-def _render_implementation_summary_prompt(task: JiraTaskPayload, runs: Sequence[ClaudeRun]) -> str:
+def _render_implementation_summary_prompt(task: JiraTaskPayload, runs: Sequence[AgentRun]) -> str:
     relevant = [run for run in runs if run.stage in {"implementation", "tests"}]
     transcript = "\n\n".join(f"[{run.stage}] {run.message.strip()}" for run in relevant if run.message)
     parts = [
         _format_task_section(task),
-        "Claude Code ACP sessions:",
+        "Coding agent sessions:",
         transcript or "(no transcript)",
         "Return an ImplementationOutput capturing the implemented behaviour, key steps, touched files, and testing "
         "considerations.",
@@ -604,13 +609,13 @@ def _render_implementation_summary_prompt(task: JiraTaskPayload, runs: Sequence[
     return "\n\n".join(parts)
 
 
-def _render_test_summary_prompt(task: JiraTaskPayload, runs: Sequence[ClaudeRun]) -> str:
+def _render_test_summary_prompt(task: JiraTaskPayload, runs: Sequence[AgentRun]) -> str:
     transcript = "\n\n".join(
         f"[{run.stage}] {run.message.strip()}" for run in runs if run.stage == "tests" and run.message
     )
     parts = [
         _format_task_section(task),
-        "Claude Code ACP testing transcripts:",
+        "Coding agent testing transcripts:",
         transcript or "(no dedicated testing transcript)",
         "Summarise the automated tests that now exist and respond with TestPlanOutput.",
     ]
@@ -713,5 +718,5 @@ __all__ = [
     "SDLCWorkflow",
     "SDLCWorkflowInput",
     "SDLCWorkflowOutput",
-    "ClaudeRun",
+    "AgentRun",
 ]

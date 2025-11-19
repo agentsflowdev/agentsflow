@@ -1,27 +1,27 @@
 """Temporal activities and helpers for AgentsFlow."""
 
 from .activities import (
+    ACPRequest,
+    ACPResponse,
     AgentsFlowActivities,
-    ClaudeACPRequest,
-    ClaudeACPResponse,
     GitWorktreeRequest,
     GitWorktreeResult,
     IssueDetails,
     IssueRequest,
     JiraTaskDetails,
     JiraTaskRequest,
-    close_claude_session,
+    close_acp_session,
 )
 
 __all__ = [
     "AgentsFlowActivities",
-    "ClaudeACPRequest",
-    "ClaudeACPResponse",
+    "ACPRequest",
+    "ACPResponse",
     "GitWorktreeRequest",
     "GitWorktreeResult",
     "IssueDetails",
     "IssueRequest",
     "JiraTaskDetails",
     "JiraTaskRequest",
-    "close_claude_session",
+    "close_acp_session",
 ]

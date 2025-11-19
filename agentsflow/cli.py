@@ -33,6 +33,7 @@ class CLISettings(BaseSettings):
     address: str = Field(default="127.0.0.1:7233", alias="TEMPORAL_ADDRESS")
     namespace: str = Field(default="default", alias="TEMPORAL_NAMESPACE")
     task_queue: str = Field(default="agentsflow-sdlc", alias="SDLC_TASK_QUEUE")
+    coding_agent_provider: str = Field(default="claude", alias="SDLC_CODING_AGENT_PROVIDER")
     model: str | None = Field(default=None, alias="SDLC_AGENT_MODEL")
     branch_name: str | None = Field(default=None, alias="SDLC_BRANCH_NAME")
     json_output: bool = Field(default=False, alias="SDLC_JSON_OUTPUT")
@@ -84,6 +85,12 @@ def _parse_args(argv: list[str], defaults: CLISettings) -> argparse.Namespace:
         dest="task_queue",
         default=defaults.task_queue,
         help="Task queue that the SDLC worker listens on (env: SDLC_TASK_QUEUE).",
+    )
+    parser.add_argument(
+        "--coding-agent-provider",
+        default=defaults.coding_agent_provider,
+        choices=["claude", "gemini"],
+        help="Coding agent provider to use (env: SDLC_CODING_AGENT_PROVIDER).",
     )
     parser.add_argument(
         "--model",
@@ -142,6 +149,7 @@ async def _start_workflow_handle(
         reference=args.reference,
         issue_url=args.issue_url,
         branch_name=args.branch_name,
+        coding_agent_provider=args.coding_agent_provider,
     )
 
     return await client.start_workflow(  # type: ignore[no-any-return]

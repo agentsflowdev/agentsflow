@@ -26,8 +26,8 @@ class WorkerSettings(BaseSettings):
     address: str = Field(default="127.0.0.1:7233", alias="TEMPORAL_ADDRESS")
     namespace: str = Field(default="default", alias="TEMPORAL_NAMESPACE")
     task_queue: str = Field(default="agentsflow-sdlc", alias="SDLC_TASK_QUEUE")
-    claude_binary: str | None = Field(default=None, alias="CLAUDE_CODE_BIN")
-    claude_auto_approve: bool = Field(default=True, alias="CLAUDE_AUTO_APPROVE")
+    agent_binary: str | None = Field(default=None, alias="ACP_AGENT_BIN")
+    auto_approve: bool = Field(default=True, alias="ACP_AUTO_APPROVE")
     log_level: str = Field(default=DEFAULT_LOG_LEVEL, alias="AGENTSFLOW_LOG_LEVEL")
 
     model_config = SettingsConfigDict(
@@ -57,25 +57,25 @@ def _parse_args(argv: list[str], defaults: WorkerSettings) -> argparse.Namespace
         help="Task queue the worker will poll (env: SDLC_TASK_QUEUE).",
     )
     parser.add_argument(
-        "--claude-binary",
-        dest="claude_binary",
-        default=defaults.claude_binary,
-        help="Path to claude-code-acp binary (env: CLAUDE_CODE_BIN).",
+        "--agent-binary",
+        dest="agent_binary",
+        default=defaults.agent_binary,
+        help="Path to agent binary (env: ACP_AGENT_BIN).",
     )
     parser.add_argument(
-        "--claude-auto-approve",
-        dest="claude_auto_approve",
+        "--auto-approve",
+        dest="auto_approve",
         action="store_true",
-        default=defaults.claude_auto_approve,
-        help="Auto-approve ACP permissions (env: CLAUDE_AUTO_APPROVE).",
+        default=defaults.auto_approve,
+        help="Auto-approve ACP permissions (env: ACP_AUTO_APPROVE).",
     )
     parser.add_argument(
-        "--claude-require-approval",
-        dest="claude_auto_approve",
+        "--require-approval",
+        dest="auto_approve",
         action="store_false",
         help="Require ACP permissions instead of auto-approving.",
     )
-    parser.set_defaults(claude_auto_approve=defaults.claude_auto_approve)
+    parser.set_defaults(auto_approve=defaults.auto_approve)
     return parser.parse_args(argv)
 
 
@@ -87,8 +87,8 @@ async def _run_worker(args: argparse.Namespace) -> None:
     )
 
     activities = AgentsFlowActivities(
-        claude_binary=args.claude_binary,
-        auto_approve=args.claude_auto_approve,
+        agent_binary=args.agent_binary,
+        auto_approve=args.auto_approve,
     )
 
     worker = Worker(

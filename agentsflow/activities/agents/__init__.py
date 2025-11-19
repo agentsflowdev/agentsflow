@@ -5,13 +5,13 @@ from typing import Any
 
 from temporalio import activity
 
-from .claude_acp import (
-    ClaudeACPRequest,
-    ClaudeACPResponse,
+from .acp_agent import (
+    ACPRequest,
+    ACPResponse,
     close_session,
 )
-from .claude_acp import (
-    run_claude_code as _run_claude_code,
+from .acp_agent import (
+    run_acp_agent as _run_acp_agent,
 )
 from .models import (
     EvaluationOutput,
@@ -45,40 +45,42 @@ from .sdlc import (
 class AgentActivities:
     """Activities involving Claude ACP sessions and LLM planning agents."""
 
-    def __init__(self, *, claude_binary: str | None = None, auto_approve: bool = True) -> None:
-        self._claude_binary = claude_binary
+    def __init__(self, *, agent_binary: str | None = None, auto_approve: bool = True) -> None:
+        self._agent_binary = agent_binary
         self._auto_approve = auto_approve
 
-    @activity.defn(name="claude_code_acp")
-    async def run_claude_code(self, request: ClaudeACPRequest) -> ClaudeACPResponse:
+    @activity.defn(name="run_acp_agent")
+    async def run_acp_agent(self, request: ACPRequest) -> ACPResponse:
         activity.logger.debug(
-            "Preparing Claude ACP activity call",
+            "Preparing ACP activity call",
             extra={
+                "agent_type": request.agent_type,
                 "session_id": request.session_id,
                 "workspace_dir": request.workspace_dir,
                 "prompt_chars": len(request.prompt),
-                "has_binary_override": self._claude_binary is not None,
+                "has_binary_override": self._agent_binary is not None,
                 "auto_approve_default": self._auto_approve,
             },
         )
         req = request
-        if req.claude_binary is None and self._claude_binary is not None:
-            req = replace(req, claude_binary=self._claude_binary)
+        if req.agent_binary is None and self._agent_binary is not None:
+            req = replace(req, agent_binary=self._agent_binary)
         if req.auto_approve is None:
             req = replace(req, auto_approve=self._auto_approve)
         activity.logger.debug(
-            "Dispatching Claude ACP activity",
+            "Dispatching ACP activity",
             extra={
+                "agent_type": req.agent_type,
                 "session_id": req.session_id,
                 "workspace_dir": req.workspace_dir,
-                "claude_binary": req.claude_binary,
+                "agent_binary": req.agent_binary,
                 "auto_approve": req.auto_approve,
                 "prompt_chars": len(req.prompt),
             },
         )
-        response = await _run_claude_code(req)
+        response = await _run_acp_agent(req)
         activity.logger.info(
-            "Claude ACP activity completed",
+            "ACP activity completed",
             extra={
                 "session_id": response.session_id,
                 "prompt_chars": len(req.prompt),
@@ -88,11 +90,11 @@ class AgentActivities:
         )
         return response
 
-    @activity.defn(name="close_claude_session")
-    async def close_claude_session(self, session_id: str) -> None:
-        activity.logger.info("Closing Claude ACP session", extra={"session_id": session_id})
+    @activity.defn(name="close_acp_session")
+    async def close_acp_session(self, session_id: str) -> None:
+        activity.logger.info("Closing ACP session", extra={"session_id": session_id})
         await close_session(session_id)
-        activity.logger.debug("Closed Claude ACP session", extra={"session_id": session_id})
+        activity.logger.debug("Closed ACP session", extra={"session_id": session_id})
 
     @activity.defn(name="run_implementation_agent")
     async def run_implementation_agent(self, prompt: str) -> ImplementationOutput:
@@ -169,8 +171,8 @@ class AgentActivities:
 
     def activities(self) -> list[Any]:
         return [
-            self.run_claude_code,
-            self.close_claude_session,
+            self.run_acp_agent,
+            self.close_acp_session,
             self.run_implementation_agent,
             self.run_evaluation_agent,
             self.run_tests_agent,
@@ -180,10 +182,10 @@ class AgentActivities:
 
 
 __all__ = [
-    "ClaudeACPRequest",
-    "ClaudeACPResponse",
+    "ACPRequest",
+    "ACPResponse",
     "close_session",
-    "run_claude_code",
+    "run_acp_agent",
     "DEFAULT_MODEL_NAME",
     "MODEL_ENV_VAR",
     "JiraTaskPayload",
@@ -201,7 +203,7 @@ __all__ = [
 ]
 
 
-run_claude_code = _run_claude_code
+run_acp_agent = _run_acp_agent
 run_implementation_agent = _run_implementation_agent
 run_evaluation_agent = _run_evaluation_agent
 run_tests_agent = _run_tests_agent

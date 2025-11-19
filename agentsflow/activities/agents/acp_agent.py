@@ -1,4 +1,4 @@
-"""Temporal helper routines for Claude Code ACP interactions."""
+"""Temporal helper routines for generic ACP (Agent Client Protocol) interactions."""
 
 from __future__ import annotations
 
@@ -53,26 +53,29 @@ from temporalio import activity
 
 
 @dataclass
-class ClaudeACPRequest:
+@dataclass
+class ACPRequest:
     prompt: str
+    agent_type: str = "claude"  # "claude" or "gemini"
+    model: str | None = None
     session_id: str | None = None
-    claude_binary: str | None = None
+    agent_binary: str | None = None
     workspace_dir: str | None = None
     auto_approve: bool | None = None
 
 
 @dataclass
-class ClaudeACPResponse:
+class ACPResponse:
     session_id: str
     message: str
     stop_reason: str | None
 
 
 @dataclass
-class _ClaudeSession:
+class _ACPSession:
     process: asyncio.subprocess.Process
     connection: ClientSideConnection
-    client: _ClaudeACPClient
+    client: _ACPClient
     session_id: str
 
     async def send_prompt(self, prompt: str) -> tuple[str, PromptResponse]:
@@ -87,16 +90,16 @@ class _ClaudeSession:
 
 class _SessionRegistry:
     def __init__(self) -> None:
-        self._sessions: dict[str, _ClaudeSession] = {}
+        self._sessions: dict[str, _ACPSession] = {}
         self._lock = asyncio.Lock()
 
-    async def get(self, session_id: str | None) -> _ClaudeSession | None:
+    async def get(self, session_id: str | None) -> _ACPSession | None:
         if session_id is None:
             return None
         async with self._lock:
             return self._sessions.get(session_id)
 
-    async def register(self, session: _ClaudeSession) -> None:
+    async def register(self, session: _ACPSession) -> None:
         async with self._lock:
             self._sessions[session.session_id] = session
 
@@ -107,12 +110,12 @@ class _SessionRegistry:
     async def create_session(
         self,
         *,
-        claude_binary: str,
+        command: list[str],
         workspace_dir: Path,
         auto_approve: bool,
-    ) -> _ClaudeSession:
+    ) -> _ACPSession:
         process = await asyncio.create_subprocess_exec(
-            claude_binary,
+            *command,
             stdin=asyncio.subprocess.PIPE,
             stdout=asyncio.subprocess.PIPE,
             stderr=None,
@@ -121,9 +124,9 @@ class _SessionRegistry:
         if process.stdin is None or process.stdout is None:
             with contextlib.suppress(Exception):
                 process.terminate()
-            raise RuntimeError("claude-code-acp process does not expose stdio pipes.")
+            raise RuntimeError("ACP agent process does not expose stdio pipes.")
 
-        client_impl = _ClaudeACPClient(auto_approve=auto_approve, workspace_dir=workspace_dir)
+        client_impl = _ACPClient(auto_approve=auto_approve, workspace_dir=workspace_dir)
         connection = ClientSideConnection(lambda _agent: client_impl, process.stdin, process.stdout)
 
         try:
@@ -147,7 +150,7 @@ class _SessionRegistry:
             raise
 
         client_impl.attach_session(session_response.sessionId)
-        session = _ClaudeSession(
+        session = _ACPSession(
             process=process,
             connection=connection,
             client=client_impl,
@@ -160,7 +163,7 @@ class _SessionRegistry:
 _session_registry = _SessionRegistry()
 
 
-class _ClaudeACPClient(Client):  # type: ignore[misc]
+class _ACPClient(Client):  # type: ignore[misc]
     def __init__(self, *, auto_approve: bool, workspace_dir: Path) -> None:
         self._auto_approve = auto_approve
         self._workspace_dir = workspace_dir
@@ -333,7 +336,19 @@ def _resolve_claude_binary(binary: str | None) -> str:
     raise FileNotFoundError("Unable to locate `claude-code-acp` binary. Set ACP_CLAUDE_BIN or provide a path.")
 
 
-async def run_claude_code(request: ClaudeACPRequest) -> ClaudeACPResponse:
+def _resolve_gemini_binary(binary: str | None) -> str:
+    if binary:
+        return binary
+    env_value = os.getenv("ACP_GEMINI_BIN")
+    if env_value:
+        return env_value
+    resolved = shutil.which("gemini")
+    if resolved:
+        return resolved
+    raise FileNotFoundError("Unable to locate `gemini` CLI. Set ACP_GEMINI_BIN or provide a path.")
+
+
+async def run_acp_agent(request: ACPRequest) -> ACPResponse:
     if not request.prompt:
         raise ValueError("Prompt is required.")
 
@@ -342,43 +357,58 @@ async def run_claude_code(request: ClaudeACPRequest) -> ClaudeACPResponse:
     workspace_dir.mkdir(parents=True, exist_ok=True)
 
     activity.logger.debug(
-        "Received Claude ACP request",
+        "Received ACP request",
         extra={
+            "agent_type": request.agent_type,
             "has_session": bool(request.session_id),
             "workspace_dir": str(workspace_dir),
             "prompt_chars": len(request.prompt),
         },
     )
 
-    session: _ClaudeSession | None = None
+    session: _ACPSession | None = None
 
     if request.session_id:
         activity.logger.debug(
-            "Attempting to reuse existing Claude session",
+            "Attempting to reuse existing ACP session",
             extra={"session_id": request.session_id},
         )
         session = await _session_registry.get(request.session_id)
         if session is not None and not session.is_alive():
             activity.logger.debug(
-                "Stale Claude session detected; creating new session",
+                "Stale ACP session detected; creating new session",
                 extra={"session_id": session.session_id},
             )
             await _session_registry.remove(session.session_id)
             session = None
 
     if session is None:
-        resolved_binary = _resolve_claude_binary(request.claude_binary)
         auto_approve = request.auto_approve if request.auto_approve is not None else True
+        command: list[str] = []
+
+        if request.agent_type == "gemini":
+            binary = _resolve_gemini_binary(request.agent_binary)
+            command = [binary, "--experimental-acp"]
+            if request.model:
+                command.extend(["--model", request.model])
+            # Gemini CLI might need --sandbox if requested, but let's stick to basic ACP for now or add if needed.
+            # The example showed --sandbox as optional. We can add it if we want strict sandboxing.
+            # For now, let's assume standard behavior.
+        else:
+            # Default to Claude
+            binary = _resolve_claude_binary(request.agent_binary)
+            command = [binary]
+
         activity.logger.debug(
-            "Launching Claude ACP session",
+            "Launching ACP session",
             extra={
-                "claude_binary": resolved_binary,
+                "command": command,
                 "workspace_dir": str(workspace_dir),
                 "auto_approve": auto_approve,
             },
         )
         session = await _session_registry.create_session(
-            claude_binary=resolved_binary,
+            command=command,
             workspace_dir=workspace_dir,
             auto_approve=auto_approve,
         )
@@ -386,7 +416,7 @@ async def run_claude_code(request: ClaudeACPRequest) -> ClaudeACPResponse:
     message, response = await session.send_prompt(request.prompt)
 
     activity.logger.debug(
-        "Claude ACP prompt completed",
+        "ACP prompt completed",
         extra={
             "session_id": session.session_id,
             "response_stop_reason": response.stopReason,
@@ -394,11 +424,11 @@ async def run_claude_code(request: ClaudeACPRequest) -> ClaudeACPResponse:
         },
     )
     activity.logger.info(
-        "Claude Code ACP prompt executed",
+        "ACP prompt executed",
         extra={"session_id": session.session_id, "stop_reason": response.stopReason},
     )
 
-    return ClaudeACPResponse(
+    return ACPResponse(
         session_id=session.session_id,
         message=message,
         stop_reason=response.stopReason,
@@ -408,7 +438,7 @@ async def run_claude_code(request: ClaudeACPRequest) -> ClaudeACPResponse:
 async def close_session(session_id: str) -> None:
     session = await _session_registry.get(session_id)
     activity.logger.debug(
-        "Closing Claude session",
+        "Closing ACP session",
         extra={"session_id": session_id, "found": session is not None},
     )
     if session is None:

@@ -5,9 +5,9 @@ from __future__ import annotations
 from typing import Any
 
 from .agents import (
+    ACPRequest,
+    ACPResponse,
     AgentActivities,
-    ClaudeACPRequest,
-    ClaudeACPResponse,
     EvaluationOutput,
     ImplementationOutput,
     ReleasePlanOutput,
@@ -36,8 +36,8 @@ from .issues import (
 
 __all__ = [
     "AgentsFlowActivities",
-    "ClaudeACPRequest",
-    "ClaudeACPResponse",
+    "ACPRequest",
+    "ACPResponse",
     "GitWorktreeRequest",
     "GitWorktreeResult",
     "FinalizeGitRequest",
@@ -55,29 +55,29 @@ __all__ = [
     "JiraTaskRequest",
     "fetch_jira_task",
     "read_issue",
-    "close_claude_session",
+    "close_acp_session",
 ]
 
 
-async def close_claude_session(session_id: str) -> None:
+async def close_acp_session(session_id: str) -> None:
     await close_session(session_id)
 
 
 class AgentsFlowActivities:
     """Collection of Temporal activity entry points used by the SDLC flow."""
 
-    def __init__(self, *, claude_binary: str | None = None, auto_approve: bool = True) -> None:
+    def __init__(self, *, agent_binary: str | None = None, auto_approve: bool = True) -> None:
         self.git = GitActivities()
         self.issues = IssueActivities()
-        self.agents = AgentActivities(claude_binary=claude_binary, auto_approve=auto_approve)
+        self.agents = AgentActivities(agent_binary=agent_binary, auto_approve=auto_approve)
 
         # Backwards-compatible attribute exposure
         self.create_git_worktree = self.git.create_git_worktree
         self.finalize_git_changes = self.git.finalize_git_changes
         self.fetch_jira_task = self.issues.fetch_jira_task
         self.read_issue = self.issues.read_issue
-        self.run_claude_code = self.agents.run_claude_code
-        self.close_claude_session = self.agents.close_claude_session
+        self.run_acp_agent = self.agents.run_acp_agent
+        self.close_acp_session = self.agents.close_acp_session
         self.run_implementation_agent = self.agents.run_implementation_agent
         self.run_evaluation_agent = self.agents.run_evaluation_agent
         self.run_tests_agent = self.agents.run_tests_agent
