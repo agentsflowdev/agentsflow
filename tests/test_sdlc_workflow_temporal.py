@@ -15,8 +15,8 @@ from temporalio.testing import WorkflowEnvironment
 from temporalio.worker import Worker
 
 from agentsflow.activities import (
-    ClaudeACPRequest,
-    ClaudeACPResponse,
+    ACPRequest,
+    ACPResponse,
     FinalizeGitRequest,
     FinalizeGitResult,
     GitWorktreeRequest,
@@ -30,7 +30,7 @@ from agentsflow.activities.agents.models import (
     ReviewOutput,
     TestPlanOutput,
 )
-from agentsflow.workflows import ClaudeRun, SDLCWorkflow, SDLCWorkflowInput
+from agentsflow.workflows import AgentRun, SDLCWorkflow, SDLCWorkflowInput
 from temporal_settings import TemporalTestSettings
 
 
@@ -54,7 +54,7 @@ class ScenarioState:
     review_messages: Sequence[str]
     git_result: GitWorktreeResult
     issue_result: IssueDetails
-    claude_calls: list[ClaudeRun] = field(default_factory=list)
+    claude_calls: list[AgentRun] = field(default_factory=list)
     closed_sessions: list[str] = field(default_factory=list)
     finalize_requests: list[FinalizeGitRequest] = field(default_factory=list)
     finalize_results: list[FinalizeGitResult] = field(default_factory=list)
@@ -73,7 +73,7 @@ class MockClaude:
             return "review"
         return "implementation"
 
-    async def __call__(self, request: ClaudeACPRequest) -> ClaudeACPResponse:
+    async def __call__(self, request: ACPRequest) -> ACPResponse:
         stage = self._detect_stage(request.prompt)
         stage_index = self._stage_counts[stage]
         self._stage_counts[stage] += 1
@@ -91,14 +91,14 @@ class MockClaude:
         else:
             message = ""
 
-        run = ClaudeRun(
+        run = AgentRun(
             stage=stage,
             prompt=request.prompt,
             message=message,
             stop_reason="completed",
         )
         self._scenario.claude_calls.append(run)
-        return ClaudeACPResponse(
+        return ACPResponse(
             session_id="session-001",
             message=message,
             stop_reason="completed",
@@ -161,8 +161,8 @@ async def _run_workflow_with_mocks(
     async def read_issue_activity(_request) -> IssueDetails:
         return scenario.issue_result
 
-    @activity.defn(name="claude_code_acp")
-    async def claude_code_acp_activity(request: ClaudeACPRequest) -> ClaudeACPResponse:
+    @activity.defn(name="run_acp_agent")
+    async def run_acp_agent_activity(request: ACPRequest) -> ACPResponse:
         return await mock_claude(request)
 
     @activity.defn(name="finalize_git_changes")
@@ -178,8 +178,8 @@ async def _run_workflow_with_mocks(
         scenario.finalize_results.append(result)
         return result
 
-    @activity.defn(name="close_claude_session")
-    async def close_claude_session_activity(session_id: str) -> None:
+    @activity.defn(name="close_acp_session")
+    async def close_acp_session_activity(session_id: str) -> None:
         scenario.closed_sessions.append(session_id)
 
     async def _call_stub(fn, prompt: str):
@@ -232,9 +232,9 @@ async def _run_workflow_with_mocks(
             activities=[
                 create_git_worktree_activity,
                 read_issue_activity,
-                claude_code_acp_activity,
+                run_acp_agent_activity,
                 finalize_git_changes_activity,
-                close_claude_session_activity,
+                close_acp_session_activity,
                 run_implementation_agent_activity,
                 run_evaluation_agent_activity,
                 run_tests_agent_activity,

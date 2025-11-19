@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from agentsflow.activities.agents import claude_acp
+from agentsflow.activities.agents import acp_agent
 
 
 class FakeSession:
@@ -33,9 +33,9 @@ class DummyRegistry:
             return None
         return self.session if self.session and self.session.session_id == session_id else None
 
-    async def create_session(self, *, claude_binary, workspace_dir, auto_approve):
+    async def create_session(self, *, command, workspace_dir, auto_approve):
         self.created_with = {
-            "claude_binary": claude_binary,
+            "command": command,
             "workspace_dir": str(workspace_dir),
             "auto_approve": auto_approve,
         }
@@ -49,17 +49,17 @@ class DummyRegistry:
 
 
 @pytest.mark.asyncio
-async def test_run_claude_code_creates_session(monkeypatch, tmp_path):
+async def test_run_acp_agent_creates_session(monkeypatch, tmp_path):
     registry = DummyRegistry()
-    monkeypatch.setattr(claude_acp, "_session_registry", registry)
-    monkeypatch.setattr(claude_acp, "_resolve_claude_binary", lambda path: "/fake/claude")
+    monkeypatch.setattr(acp_agent, "_session_registry", registry)
+    monkeypatch.setattr(acp_agent, "_resolve_claude_binary", lambda path: "/fake/claude")
 
-    request = claude_acp.ClaudeACPRequest(prompt="Hello", workspace_dir=str(tmp_path))
+    request = acp_agent.ACPRequest(prompt="Hello", agent_type="claude", workspace_dir=str(tmp_path))
 
-    result = await claude_acp.run_claude_code(request)
+    result = await acp_agent.run_acp_agent(request)
 
     assert registry.created_with == {
-        "claude_binary": "/fake/claude",
+        "command": ["/fake/claude"],
         "workspace_dir": str(tmp_path.resolve()),
         "auto_approve": True,
     }
@@ -69,19 +69,20 @@ async def test_run_claude_code_creates_session(monkeypatch, tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_run_claude_code_reuses_session(monkeypatch, tmp_path):
+async def test_run_acp_agent_reuses_session(monkeypatch, tmp_path):
     existing = FakeSession(session_id="sess-existing")
     registry = DummyRegistry(session=existing)
-    monkeypatch.setattr(claude_acp, "_session_registry", registry)
-    monkeypatch.setattr(claude_acp, "_resolve_claude_binary", lambda path: "/fake/claude")
+    monkeypatch.setattr(acp_agent, "_session_registry", registry)
+    monkeypatch.setattr(acp_agent, "_resolve_claude_binary", lambda path: "/fake/claude")
 
-    request = claude_acp.ClaudeACPRequest(
+    request = acp_agent.ACPRequest(
         prompt="Hello again",
+        agent_type="claude",
         session_id="sess-existing",
         workspace_dir=str(tmp_path),
     )
 
-    result = await claude_acp.run_claude_code(request)
+    result = await acp_agent.run_acp_agent(request)
 
     assert registry.created_with is None
     assert result.session_id == "sess-existing"
@@ -89,11 +90,11 @@ async def test_run_claude_code_reuses_session(monkeypatch, tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_close_claude_session(monkeypatch):
+async def test_close_acp_session(monkeypatch):
     session = FakeSession(session_id="sess-close")
     registry = DummyRegistry(session=session)
-    monkeypatch.setattr(claude_acp, "_session_registry", registry)
+    monkeypatch.setattr(acp_agent, "_session_registry", registry)
 
-    await claude_acp.close_session("sess-close")
+    await acp_agent.close_session("sess-close")
 
     assert registry.removed == "sess-close"
