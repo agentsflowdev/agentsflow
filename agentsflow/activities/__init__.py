@@ -8,6 +8,7 @@ from .agents import (
     ACPRequest,
     ACPResponse,
     AgentActivities,
+    ClarificationOutput,
     EvaluationOutput,
     ImplementationOutput,
     ReleasePlanOutput,
@@ -51,6 +52,7 @@ __all__ = [
     "TestPlanOutput",
     "ReviewOutput",
     "ReleasePlanOutput",
+    "ClarificationOutput",
     "JiraTaskDetails",
     "JiraTaskRequest",
     "fetch_jira_task",
@@ -82,6 +84,7 @@ class AgentsFlowActivities:
         self.run_evaluation_agent = self.agents.run_evaluation_agent
         self.run_tests_agent = self.agents.run_tests_agent
         self.run_review_agent = self.agents.run_review_agent
+        self.run_clarification_agent = self.agents.run_clarification_agent
         self.run_release_agent = self.agents.run_release_agent
 
     def activities(self) -> list[Any]:

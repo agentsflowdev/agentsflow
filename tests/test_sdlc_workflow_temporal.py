@@ -24,6 +24,7 @@ from agentsflow.activities import (
     IssueDetails,
 )
 from agentsflow.activities.agents.models import (
+    ClarificationOutput,
     EvaluationOutput,
     ImplementationOutput,
     ReleasePlanOutput,
@@ -59,6 +60,7 @@ class ScenarioState:
     finalize_requests: list[FinalizeGitRequest] = field(default_factory=list)
     finalize_results: list[FinalizeGitResult] = field(default_factory=list)
     branch_override: str | None = None
+    clarification_result: ClarificationOutput | None = None
 
 
 class MockClaude:
@@ -198,6 +200,14 @@ async def _run_workflow_with_mocks(
     async def run_tests_agent_activity(prompt: str) -> TestPlanOutput:
         return await _call_stub(test_summary, prompt)
 
+    @activity.defn(name="run_clarification_agent")
+    async def run_clarification_agent_activity(prompt: str) -> ClarificationOutput:  # noqa: ARG001
+        return scenario.clarification_result or ClarificationOutput(
+            clarification_required=False,
+            open_questions=[],
+            assumptions=[],
+        )
+
     @activity.defn(name="run_review_agent")
     async def run_review_agent_activity(prompt: str) -> ReviewOutput:
         return await _call_stub(review_agent.run, prompt)
@@ -240,6 +250,7 @@ async def _run_workflow_with_mocks(
                 run_tests_agent_activity,
                 run_review_agent_activity,
                 run_release_agent_activity,
+                run_clarification_agent_activity,
             ],
         ):
             workflow_input = SDLCWorkflowInput(

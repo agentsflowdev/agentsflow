@@ -12,6 +12,7 @@ from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from .models import (
+    ClarificationOutput,
     EvaluationOutput,
     ImplementationOutput,
     JiraTaskPayload,
@@ -151,6 +152,22 @@ def _release_agent() -> Agent[None, ReleasePlanOutput]:
     )
 
 
+@cache
+def _clarification_agent() -> Agent[None, ClarificationOutput]:
+    return _build_agent(
+        name="sdlc-clarification",
+        instructions=(
+            "You audit the issue description and recent comments before any coding begins. Identify whether the"
+            " requirements are fully specified. Only set clarification_required to True when missing inputs,"
+            " conflicting acceptance criteria, external approvals, or environment constraints would block progress."
+            " Always return concrete, answerable open_questions (or an empty list when none exist) and list any"
+            " assumptions that downstream agents should double-check. If everything looks clear, set"
+            " clarification_required to False and leave open_questions empty."
+        ),
+        output_type=ClarificationOutput,
+    )
+
+
 async def run_implementation_agent(prompt: str) -> ImplementationOutput:
     return (await _implementation_agent().run(prompt)).output
 
@@ -171,6 +188,10 @@ async def run_release_agent(prompt: str) -> ReleasePlanOutput:
     return (await _release_agent().run(prompt)).output
 
 
+async def run_clarification_agent(prompt: str) -> ClarificationOutput:
+    return (await _clarification_agent().run(prompt)).output
+
+
 __all__ = [
     "DEFAULT_MODEL_NAME",
     "MODEL_ENV_VAR",
@@ -180,9 +201,11 @@ __all__ = [
     "TestPlanOutput",
     "ReviewOutput",
     "ReleasePlanOutput",
+    "ClarificationOutput",
     "run_implementation_agent",
     "run_evaluation_agent",
     "run_tests_agent",
     "run_review_agent",
+    "run_clarification_agent",
     "run_release_agent",
 ]
