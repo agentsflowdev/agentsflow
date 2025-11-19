@@ -152,23 +152,23 @@ def _release_agent() -> Agent[None, ReleasePlanOutput]:
 
 
 async def run_implementation_agent(prompt: str) -> ImplementationOutput:
-    return (await _implementation_agent().run(prompt)).data  # type: ignore[attr-defined,no-any-return]
+    return (await _implementation_agent().run(prompt)).output
 
 
 async def run_evaluation_agent(prompt: str) -> EvaluationOutput:
-    return (await _evaluation_agent().run(prompt)).data  # type: ignore[attr-defined,no-any-return]
+    return (await _evaluation_agent().run(prompt)).output
 
 
 async def run_tests_agent(prompt: str) -> TestPlanOutput:
-    return (await _tests_agent().run(prompt)).data  # type: ignore[attr-defined,no-any-return]
+    return (await _tests_agent().run(prompt)).output
 
 
 async def run_review_agent(prompt: str) -> ReviewOutput:
-    return (await _review_agent().run(prompt)).data  # type: ignore[attr-defined,no-any-return]
+    return (await _review_agent().run(prompt)).output
 
 
 async def run_release_agent(prompt: str) -> ReleasePlanOutput:
-    return (await _release_agent().run(prompt)).data  # type: ignore[attr-defined,no-any-return]
+    return (await _release_agent().run(prompt)).output
 
 
 __all__ = [
