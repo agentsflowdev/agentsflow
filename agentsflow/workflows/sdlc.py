@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import timedelta
-from typing import Literal, Sequence
+from typing import Any, Literal
 
 from pydantic import AliasChoices, BaseModel, Field
 from temporalio import workflow
@@ -29,7 +30,6 @@ from agentsflow.activities.agents import (
     TestPlanOutput,
 )
 
-
 MAX_IMPLEMENTATION_ATTEMPTS = 4
 MAX_TEST_ATTEMPTS = 3
 MAX_REVIEW_ATTEMPTS = 3
@@ -45,12 +45,8 @@ class ClaudeRun(BaseModel):
 class SDLCWorkflowInput(BaseModel):
     """Parameters required to kick off the SDLC workflow."""
 
-    repository: str = Field(
-        ..., description="Local path or remote URL to the source repository."
-    )
-    reference: str | None = Field(
-        default=None, description="Optional git reference to base the worktree on."
-    )
+    repository: str = Field(..., description="Local path or remote URL to the source repository.")
+    reference: str | None = Field(default=None, description="Optional git reference to base the worktree on.")
     issue_url: str = Field(
         ...,
         description="URL pointing to the issue (Jira, GitHub, etc.).",
@@ -98,9 +94,7 @@ class SDLCWorkflow:
         )
         git_result = await workflow.execute_activity(
             "create_git_worktree",
-            GitWorktreeRequest(
-                repository=params.repository, reference=params.reference
-            ),
+            GitWorktreeRequest(repository=params.repository, reference=params.reference),
             start_to_close_timeout=timedelta(minutes=4),
             retry_policy=RetryPolicy(maximum_attempts=3),
             result_type=GitWorktreeResult,
@@ -142,9 +136,7 @@ class SDLCWorkflow:
             session_kind: Literal["coding", "review"],
         ) -> ClaudeACPResponse:
             nonlocal coding_session_id, review_session_id
-            session_id = (
-                coding_session_id if session_kind == "coding" else review_session_id
-            )
+            session_id = coding_session_id if session_kind == "coding" else review_session_id
             response = await workflow.execute_activity(
                 "claude_code_acp",
                 ClaudeACPRequest(
@@ -168,15 +160,15 @@ class SDLCWorkflow:
                     stop_reason=response.stop_reason,
                 )
             )
-            return response
+            return response  # type: ignore[no-any-return]
 
         async def _run_agent_activity(
             name: str,
             prompt: str,
-            result_type,
+            result_type: type,
             *,
             timeout_minutes: int = 2,
-        ):
+        ) -> Any:
             return await workflow.execute_activity(
                 name,
                 prompt,
@@ -221,9 +213,7 @@ class SDLCWorkflow:
                         workspace_dir=git_result.worktree_path,
                         feedback=coding_feedback,
                     )
-                    coding_response = await _invoke_claude(
-                        "implementation", coding_prompt, session_kind="coding"
-                    )
+                    coding_response = await _invoke_claude("implementation", coding_prompt, session_kind="coding")
                     evaluation = await _run_agent_activity(
                         "run_evaluation_agent",
                         _render_evaluation_prompt(
@@ -285,9 +275,7 @@ class SDLCWorkflow:
                             workspace_dir=git_result.worktree_path,
                             feedback=tests_feedback,
                         )
-                        test_response = await _invoke_claude(
-                            "tests", tests_prompt, session_kind="coding"
-                        )
+                        test_response = await _invoke_claude("tests", tests_prompt, session_kind="coding")
 
                         evaluation = await _run_agent_activity(
                             "run_evaluation_agent",
@@ -346,15 +334,11 @@ class SDLCWorkflow:
                         workspace_dir=git_result.worktree_path,
                         feedback=review_feedback,
                     )
-                    review_response = await _invoke_claude(
-                        "review", review_prompt_text, session_kind="review"
-                    )
+                    review_response = await _invoke_claude("review", review_prompt_text, session_kind="review")
 
                     review = await _run_agent_activity(
                         "run_review_agent",
-                        _render_review_evaluation_prompt(
-                            task_payload, review_response.message
-                        ),
+                        _render_review_evaluation_prompt(task_payload, review_response.message),
                         ReviewOutput,
                     )
                     logger.info(
@@ -401,9 +385,7 @@ class SDLCWorkflow:
                     _render_test_summary_prompt(task_payload, claude_runs),
                     TestPlanOutput,
                 )
-                logger.info(
-                    "Test plan produced", extra={"cases": len(test_plan.test_cases)}
-                )
+                logger.info("Test plan produced", extra={"cases": len(test_plan.test_cases)})
             else:
                 test_plan = None
 
@@ -470,9 +452,7 @@ class SDLCWorkflow:
         finally:
             closed_session_ids: set[str] = set()
             if coding_session_id and coding_session_id not in closed_session_ids:
-                logger.info(
-                    "Closing coding session", extra={"session_id": coding_session_id}
-                )
+                logger.info("Closing coding session", extra={"session_id": coding_session_id})
                 await workflow.execute_activity(
                     "close_claude_session",
                     coding_session_id,
@@ -481,9 +461,7 @@ class SDLCWorkflow:
                 )
                 closed_session_ids.add(coding_session_id)
             if review_session_id and review_session_id not in closed_session_ids:
-                logger.info(
-                    "Closing review session", extra={"session_id": review_session_id}
-                )
+                logger.info("Closing review session", extra={"session_id": review_session_id})
                 await workflow.execute_activity(
                     "close_claude_session",
                     review_session_id,
@@ -543,27 +521,28 @@ def _render_claude_prompt(
         f"Workspace directory: {workspace_dir or 'unknown'}",
     ]
     if feedback:
-        base.append(
-            "Outstanding feedback:\n" + "\n".join(f"- {item}" for item in feedback)
-        )
+        base.append("Outstanding feedback:\n" + "\n".join(f"- {item}" for item in feedback))
 
     if stage == "implementation":
         base.append(
-            "Implement the task end-to-end. Stay tightly scoped to the acceptance criteria—avoid creating placeholder assets, "
-            "renaming files, or adding new dependencies unless they are essential to the solution. "
+            "Implement the task end-to-end. Stay tightly scoped to the acceptance criteria—avoid creating "
+            "placeholder assets, renaming files, or adding new dependencies unless they are essential to the solution. "
             "Summarise the work by listing each file you touched alongside the intent of the change. "
-            "Before you conclude, run the repository's existing linting and automated test commands that validate the implementation and include their outcomes."
+            "Before you conclude, run the repository's existing linting and automated test commands that validate "
+            "the implementation and include their outcomes."
         )
     elif stage == "tests":
         base.append(
-            "Focus exclusively on automated tests. Limit edits to test code and supporting fixtures unless a minimal production "
-            "change is strictly required for the tests to run. Report which tests you created or updated and any commands you ran. "
-            "Run the available linting and test suites (e.g., pytest, npm test, go test) to prove the new tests pass and capture their results."
+            "Focus exclusively on automated tests. Limit edits to test code and supporting fixtures unless a minimal "
+            "production change is strictly required for the tests to run. Report which tests you created or updated "
+            "and any commands you ran. "
+            "Run the available linting and test suites (e.g., pytest, npm test, go test) to prove the new tests pass "
+            "and capture their results."
         )
     else:  # review
         base.append(
-            "Perform a thorough code review of the current workspace. Highlight blockers, risks, and suggested improvements. "
-            "Do not make further code changes unless strictly required to inspect the code."
+            "Perform a thorough code review of the current workspace. Highlight blockers, risks, and suggested "
+            "improvements. Do not make further code changes unless strictly required to inspect the code."
         )
 
     base.append(
@@ -577,15 +556,20 @@ def _render_evaluation_prompt(
     *, stage: Literal["implementation", "tests"], task: JiraTaskPayload, transcript: str
 ) -> str:
     focus = (
-        "Decide whether the Jira task appears complete based on the transcript narrative. Assume the coding agent's statements are accurate unless they acknowledge missing work or failures."
+        "Decide whether the Jira task appears complete based on the transcript narrative. Assume the coding agent's "
+        "statements are accurate unless they acknowledge missing work or failures."
         if stage == "implementation"
-        else "Decide whether adequate automated tests now exist according to the transcript. Only treat the tests as implemented when the transcript references running automated suites, commands, or specific test artefacts; manual spot checks alone are insufficient."
+        else "Decide whether adequate automated tests now exist according to the transcript. Only treat the tests as "
+        "implemented when the transcript references running automated suites, commands, or specific test artefacts; "
+        "manual spot checks alone are insufficient."
     )
     parts = [
         _format_task_section(task),
         "Coding agent transcript:",
         transcript.strip() or "(no output)",
-        f"{focus} Reply with EvaluationOutput so that task_implemented and automated_tests_implemented mirror the transcript's own claims. When the agent notes TODOs, failures, or uncertainty, mark the appropriate flag False and explain why.",
+        f"{focus} Reply with EvaluationOutput so that task_implemented and automated_tests_implemented mirror the "
+        "transcript's own claims. When the agent notes TODOs, failures, or uncertainty, mark the appropriate flag "
+        "False and explain why.",
     ]
     return "\n\n".join(parts)
 
@@ -596,36 +580,33 @@ def _render_review_evaluation_prompt(task: JiraTaskPayload, transcript: str) -> 
         "Coding agent review transcript:",
         transcript.strip() or "(no output)",
         (
-            "Summarise the review findings and respond with ReviewOutput. If you identify any issue or recommendation that requires modifying code, tests, documentation, or automation, classify it as an issue and set approval to False. Flag approval as False if any blocking issues remain or if the transcript lacks concrete evidence that code and automated tests were inspected. "
+            "Summarise the review findings and respond with ReviewOutput. If you identify any issue or recommendation "
+            "that requires modifying code, tests, documentation, or automation, classify it as an issue and set "
+            "approval to False. "
+            "Flag approval as False if any blocking issues remain or if the transcript lacks concrete evidence that "
+            "code and automated tests were inspected. "
             "Ignore the state of git commits or untracked files—the workflow handles committing in a later step."
         ),
     ]
     return "\n\n".join(parts)
 
 
-def _render_implementation_summary_prompt(
-    task: JiraTaskPayload, runs: Sequence[ClaudeRun]
-) -> str:
+def _render_implementation_summary_prompt(task: JiraTaskPayload, runs: Sequence[ClaudeRun]) -> str:
     relevant = [run for run in runs if run.stage in {"implementation", "tests"}]
-    transcript = "\n\n".join(
-        f"[{run.stage}] {run.message.strip()}" for run in relevant if run.message
-    )
+    transcript = "\n\n".join(f"[{run.stage}] {run.message.strip()}" for run in relevant if run.message)
     parts = [
         _format_task_section(task),
         "Claude Code ACP sessions:",
         transcript or "(no transcript)",
-        "Return an ImplementationOutput capturing the implemented behaviour, key steps, touched files, and testing considerations.",
+        "Return an ImplementationOutput capturing the implemented behaviour, key steps, touched files, and testing "
+        "considerations.",
     ]
     return "\n\n".join(parts)
 
 
-def _render_test_summary_prompt(
-    task: JiraTaskPayload, runs: Sequence[ClaudeRun]
-) -> str:
+def _render_test_summary_prompt(task: JiraTaskPayload, runs: Sequence[ClaudeRun]) -> str:
     transcript = "\n\n".join(
-        f"[{run.stage}] {run.message.strip()}"
-        for run in runs
-        if run.stage == "tests" and run.message
+        f"[{run.stage}] {run.message.strip()}" for run in runs if run.stage == "tests" and run.message
     )
     parts = [
         _format_task_section(task),
@@ -646,13 +627,15 @@ def _render_release_prompt(
     parts = [
         _format_task_section(task),
         _format_implementation_section(implementation),
-        f"Final evaluation: task_implemented={evaluation.task_implemented}, automated_tests_implemented={evaluation.automated_tests_implemented}. Reasoning: {evaluation.reasoning}",
+        f"Final evaluation: task_implemented={evaluation.task_implemented}, "
+        f"automated_tests_implemented={evaluation.automated_tests_implemented}. Reasoning: {evaluation.reasoning}",
         _format_review_section(review),
     ]
     if test_plan is not None:
         parts.append(_format_test_plan_section(test_plan))
     parts.append(
-        "Draft the source-control rollout details and respond with ReleasePlanOutput, including branch, commit message, PR title/body, and follow-up tasks."
+        "Draft the source-control rollout details and respond with ReleasePlanOutput, including branch, commit "
+        "message, PR title/body, and follow-up tasks."
     )
     return "\n\n".join(parts)
 
@@ -696,9 +679,7 @@ def _format_implementation_section(implementation: ImplementationOutput) -> str:
         f"Implementation summary: {implementation.summary}",
         _format_list_section("Key steps", implementation.key_steps),
         _format_list_section("Files to change", implementation.files_to_change),
-        _format_list_section(
-            "Testing considerations", implementation.testing_considerations
-        ),
+        _format_list_section("Testing considerations", implementation.testing_considerations),
     ]
     return "\n".join(lines)
 

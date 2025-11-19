@@ -59,9 +59,7 @@ def register_issue_provider(provider: IssueProvider) -> None:
 
 
 def list_issue_providers() -> tuple[str, ...]:
-    return tuple(
-        provider.name for provider in _PROVIDERS if _provider_is_configured(provider)
-    )
+    return tuple(provider.name for provider in _PROVIDERS if _provider_is_configured(provider))
 
 
 def _select_provider(issue_url: str, provider_name: str | None) -> IssueProvider:
@@ -70,9 +68,7 @@ def _select_provider(issue_url: str, provider_name: str | None) -> IssueProvider
         for provider in reversed(_PROVIDERS):
             if provider.name == provider_name:
                 if not _provider_is_configured(provider):
-                    raise ValueError(
-                        f"Issue provider '{provider_name}' is not configured in this environment."
-                    )
+                    raise ValueError(f"Issue provider '{provider_name}' is not configured in this environment.")
                 return provider
         raise ValueError(f"No issue provider registered with name '{provider_name}'.")
     for provider in reversed(_PROVIDERS):

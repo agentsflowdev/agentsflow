@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import os
 from datetime import datetime
+from typing import Any
 from urllib.parse import urlparse
 
 from github import Github
@@ -27,7 +28,7 @@ def _isoformat(value: datetime | None) -> str | None:
     return value.replace(microsecond=0).isoformat()
 
 
-def _normalize_author(user) -> str:
+def _normalize_author(user: Any) -> str:
     if user is None:
         return ""
     name = getattr(user, "name", None) or ""
@@ -39,9 +40,7 @@ def _parse_issue_segments(issue_url: str) -> tuple[str, str, int]:
     parsed = urlparse(issue_url)
     host = parsed.netloc.lower()
     if not host.endswith("github.com"):
-        raise ValueError(
-            "Only github.com issue URLs are supported by the GitHub provider."
-        )
+        raise ValueError("Only github.com issue URLs are supported by the GitHub provider.")
     segments = [segment for segment in parsed.path.split("/") if segment]
     if len(segments) < 4:
         raise ValueError("GitHub issue URL must include owner, repo, and issue number.")
@@ -53,9 +52,7 @@ def _parse_issue_segments(issue_url: str) -> tuple[str, str, int]:
     try:
         number = int(segments[issues_index + 1])
     except (IndexError, ValueError) as exc:
-        raise ValueError(
-            "GitHub issue URL must end with the numeric issue identifier."
-        ) from exc
+        raise ValueError("GitHub issue URL must end with the numeric issue identifier.") from exc
     return owner, repo, number
 
 
@@ -76,17 +73,11 @@ def _fetch_github_issue(
         issue = repository.get_issue(number=issue_number)
         comments = list(issue.get_comments())
     except BadCredentialsException as exc:
-        raise PermissionError(
-            "GitHub authentication failed; please check the token provided."
-        ) from exc
+        raise PermissionError("GitHub authentication failed; please check the token provided.") from exc
     except UnknownObjectException as exc:
-        raise ValueError(
-            f"GitHub issue {owner}/{repo}#{issue_number} could not be found or you lack access."
-        ) from exc
+        raise ValueError(f"GitHub issue {owner}/{repo}#{issue_number} could not be found or you lack access.") from exc
     except GithubException as exc:  # pragma: no cover - PyGithub error wrapper
-        raise RuntimeError(
-            f"GitHub API error while fetching issue: {exc.data or exc}"
-        ) from exc
+        raise RuntimeError(f"GitHub API error while fetching issue: {exc.data or exc}") from exc
 
     parsed_comments: list[IssueComment] = []
     for comment in comments:

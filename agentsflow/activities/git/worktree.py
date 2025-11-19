@@ -7,14 +7,15 @@ can reuse the same behaviour within Temporal workflows.
 from __future__ import annotations
 
 import asyncio
-from pathlib import Path
 import tempfile
+from pathlib import Path
 
 import git
 from git.exc import GitCommandError, InvalidGitRepositoryError, NoSuchPathError
 from temporalio import activity
 
 from agentsflow.utils.filesystem import CLONE_PREFIX, safe_remove_tree
+
 from .models import GitWorktreeRequest, GitWorktreeResult
 
 
@@ -64,9 +65,7 @@ def _create_git_worktree(request: GitWorktreeRequest) -> GitWorktreeResult:
         raise ValueError("The provided path is not a valid git repository.") from exc
     except GitCommandError as exc:
         detail = exc.stderr or exc.stdout or str(exc)
-        raise RuntimeError(
-            f"Git error while creating worktree: {detail.strip()}"
-        ) from exc
+        raise RuntimeError(f"Git error while creating worktree: {detail.strip()}") from exc
     except Exception:
         # Let unexpected exceptions bubble up after cleanup.
         raise

@@ -5,9 +5,8 @@ from __future__ import annotations
 import logging
 import shutil
 import tempfile
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Iterable
-
 
 WORKTREE_PREFIX = "temporal-worktree-"
 CLONE_PREFIX = "temporal-worktree-repo-"

@@ -9,15 +9,15 @@ import sys
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from temporalio.client import Client
-from temporalio.worker import Worker
 from temporalio.contrib.pydantic import pydantic_data_converter
+from temporalio.worker import Worker
+
 from agentsflow.activities import AgentsFlowActivities
-from agentsflow.workflows import SDLCWorkflow
 from agentsflow.logging_utils import (
     DEFAULT_LOG_LEVEL,
-    LOG_LEVEL_ENV,
     configure_logging,
 )
+from agentsflow.workflows import SDLCWorkflow
 
 
 class WorkerSettings(BaseSettings):
@@ -28,7 +28,7 @@ class WorkerSettings(BaseSettings):
     task_queue: str = Field(default="agentsflow-sdlc", alias="SDLC_TASK_QUEUE")
     claude_binary: str | None = Field(default=None, alias="CLAUDE_CODE_BIN")
     claude_auto_approve: bool = Field(default=True, alias="CLAUDE_AUTO_APPROVE")
-    log_level: str = Field(default=DEFAULT_LOG_LEVEL, alias=LOG_LEVEL_ENV)
+    log_level: str = Field(default=DEFAULT_LOG_LEVEL, alias="AGENTSFLOW_LOG_LEVEL")
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -39,9 +39,7 @@ class WorkerSettings(BaseSettings):
 
 
 def _parse_args(argv: list[str], defaults: WorkerSettings) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Start the AgentsFlow Temporal worker."
-    )
+    parser = argparse.ArgumentParser(description="Start the AgentsFlow Temporal worker.")
     parser.add_argument(
         "--address",
         default=defaults.address,

@@ -1,6 +1,7 @@
 """LLM agent integrations used by AgentsFlow workflows."""
 
 from dataclasses import replace
+from typing import Any
 
 from temporalio import activity
 
@@ -8,6 +9,8 @@ from .claude_acp import (
     ClaudeACPRequest,
     ClaudeACPResponse,
     close_session,
+)
+from .claude_acp import (
     run_claude_code as _run_claude_code,
 )
 from .models import (
@@ -21,10 +24,20 @@ from .models import (
 from .sdlc import (
     DEFAULT_MODEL_NAME,
     MODEL_ENV_VAR,
+)
+from .sdlc import (
     run_evaluation_agent as _run_evaluation_agent,
+)
+from .sdlc import (
     run_implementation_agent as _run_implementation_agent,
+)
+from .sdlc import (
     run_release_agent as _run_release_agent,
+)
+from .sdlc import (
     run_review_agent as _run_review_agent,
+)
+from .sdlc import (
     run_tests_agent as _run_tests_agent,
 )
 
@@ -32,9 +45,7 @@ from .sdlc import (
 class AgentActivities:
     """Activities involving Claude ACP sessions and LLM planning agents."""
 
-    def __init__(
-        self, *, claude_binary: str | None = None, auto_approve: bool = True
-    ) -> None:
+    def __init__(self, *, claude_binary: str | None = None, auto_approve: bool = True) -> None:
         self._claude_binary = claude_binary
         self._auto_approve = auto_approve
 
@@ -79,13 +90,9 @@ class AgentActivities:
 
     @activity.defn(name="close_claude_session")
     async def close_claude_session(self, session_id: str) -> None:
-        activity.logger.info(
-            "Closing Claude ACP session", extra={"session_id": session_id}
-        )
+        activity.logger.info("Closing Claude ACP session", extra={"session_id": session_id})
         await close_session(session_id)
-        activity.logger.debug(
-            "Closed Claude ACP session", extra={"session_id": session_id}
-        )
+        activity.logger.debug("Closed Claude ACP session", extra={"session_id": session_id})
 
     @activity.defn(name="run_implementation_agent")
     async def run_implementation_agent(self, prompt: str) -> ImplementationOutput:
@@ -106,9 +113,7 @@ class AgentActivities:
 
     @activity.defn(name="run_evaluation_agent")
     async def run_evaluation_agent(self, prompt: str) -> EvaluationOutput:
-        activity.logger.info(
-            "Running evaluation agent", extra={"prompt_chars": len(prompt)}
-        )
+        activity.logger.info("Running evaluation agent", extra={"prompt_chars": len(prompt)})
         result = await _run_evaluation_agent(prompt)
         activity.logger.info(
             "Evaluation agent completed",
@@ -136,9 +141,7 @@ class AgentActivities:
 
     @activity.defn(name="run_review_agent")
     async def run_review_agent(self, prompt: str) -> ReviewOutput:
-        activity.logger.info(
-            "Running review agent", extra={"prompt_chars": len(prompt)}
-        )
+        activity.logger.info("Running review agent", extra={"prompt_chars": len(prompt)})
         result = await _run_review_agent(prompt)
         activity.logger.info(
             "Review agent completed",
@@ -153,9 +156,7 @@ class AgentActivities:
 
     @activity.defn(name="run_release_agent")
     async def run_release_agent(self, prompt: str) -> ReleasePlanOutput:
-        activity.logger.info(
-            "Running release agent", extra={"prompt_chars": len(prompt)}
-        )
+        activity.logger.info("Running release agent", extra={"prompt_chars": len(prompt)})
         result = await _run_release_agent(prompt)
         activity.logger.info(
             "Release agent completed",
@@ -166,7 +167,7 @@ class AgentActivities:
         )
         return result
 
-    def activities(self) -> list:
+    def activities(self) -> list[Any]:
         return [
             self.run_claude_code,
             self.close_claude_session,

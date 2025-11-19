@@ -1,13 +1,14 @@
 from collections import defaultdict, deque
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Literal, Sequence
+from typing import Literal
 from uuid import uuid4
 
 import pytest
 from temporalio import activity
-from temporalio.common import RetryPolicy
 from temporalio import client as temporal_client
 from temporalio.client import WorkflowFailureError
+from temporalio.common import RetryPolicy
 from temporalio.contrib.pydantic import pydantic_data_converter
 from temporalio.exceptions import ApplicationError
 from temporalio.testing import WorkflowEnvironment
@@ -22,8 +23,6 @@ from agentsflow.activities import (
     GitWorktreeResult,
     IssueDetails,
 )
-
-from agentsflow.workflows import ClaudeRun, SDLCWorkflow, SDLCWorkflowInput
 from agentsflow.activities.agents.models import (
     EvaluationOutput,
     ImplementationOutput,
@@ -31,6 +30,7 @@ from agentsflow.activities.agents.models import (
     ReviewOutput,
     TestPlanOutput,
 )
+from agentsflow.workflows import ClaudeRun, SDLCWorkflow, SDLCWorkflowInput
 from temporal_settings import TemporalTestSettings
 
 
@@ -66,9 +66,7 @@ class MockClaude:
         self._scenario = scenario
         self._stage_counts: defaultdict[str, int] = defaultdict(int)
 
-    def _detect_stage(
-        self, prompt: str
-    ) -> Literal["implementation", "tests", "review"]:
+    def _detect_stage(self, prompt: str) -> Literal["implementation", "tests", "review"]:
         if "Focus exclusively on automated tests" in prompt:
             return "tests"
         if "Perform a thorough code review" in prompt:
@@ -122,9 +120,7 @@ class FakeEvaluationAgent:
         else:
             result = self._last_tests if is_tests_prompt else self._last_impl
             if result is None:
-                raise AssertionError(
-                    "Evaluation agent exhausted with no fallback result"
-                )
+                raise AssertionError("Evaluation agent exhausted with no fallback result")
         return FakeAgentResult(result)
 
 
@@ -211,9 +207,7 @@ async def _run_workflow_with_mocks(
         return await _call_stub(release_agent, prompt)
 
     if external_settings is None:
-        env = await WorkflowEnvironment.start_time_skipping(
-            data_converter=pydantic_data_converter
-        )
+        env = await WorkflowEnvironment.start_time_skipping(data_converter=pydantic_data_converter)
         client = env.client
         shutdown_cb = env.shutdown
         task_queue = "test-sdlc"
@@ -388,16 +382,11 @@ async def test_workflow_retries_claude_until_checks_pass(monkeypatch):
 
     assert result.implementation.summary == "Implemented null handling for toggle."
     assert result.evaluation.automated_tests_implemented is True
-    assert (
-        result.test_plan is not None and "pytest" in result.test_plan.tooling_notes[0]
-    )
+    assert result.test_plan is not None and "pytest" in result.test_plan.tooling_notes[0]
     assert result.review.approval is True
     assert result.release_plan.branch_name == "feature/abc-123-null-toggle"
     assert scenario.finalize_requests
-    assert (
-        scenario.finalize_requests[0].commit_message
-        == "feat: handle null inputs in toggle"
-    )
+    assert scenario.finalize_requests[0].commit_message == "feat: handle null inputs in toggle"
     assert result.committed_branch == scenario.finalize_requests[0].branch_name
     assert result.committed_sha == scenario.finalize_results[0].commit_sha
     assert result.commit_pushed is False

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import List
 
 
 @dataclass(slots=True)
@@ -26,4 +25,4 @@ class IssueDetails:
     summary: str
     description: str
     status: str | None
-    comments: List[IssueComment]
+    comments: list[IssueComment]

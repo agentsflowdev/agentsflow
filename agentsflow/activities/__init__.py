@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from .agents import (
     AgentActivities,
     ClaudeACPRequest,
@@ -64,14 +66,10 @@ async def close_claude_session(session_id: str) -> None:
 class AgentsFlowActivities:
     """Collection of Temporal activity entry points used by the SDLC flow."""
 
-    def __init__(
-        self, *, claude_binary: str | None = None, auto_approve: bool = True
-    ) -> None:
+    def __init__(self, *, claude_binary: str | None = None, auto_approve: bool = True) -> None:
         self.git = GitActivities()
         self.issues = IssueActivities()
-        self.agents = AgentActivities(
-            claude_binary=claude_binary, auto_approve=auto_approve
-        )
+        self.agents = AgentActivities(claude_binary=claude_binary, auto_approve=auto_approve)
 
         # Backwards-compatible attribute exposure
         self.create_git_worktree = self.git.create_git_worktree
@@ -86,7 +84,5 @@ class AgentsFlowActivities:
         self.run_review_agent = self.agents.run_review_agent
         self.run_release_agent = self.agents.run_release_agent
 
-    def activities(self) -> list:
-        return (
-            self.git.activities() + self.issues.activities() + self.agents.activities()
-        )
+    def activities(self) -> list[Any]:
+        return self.git.activities() + self.issues.activities() + self.agents.activities()

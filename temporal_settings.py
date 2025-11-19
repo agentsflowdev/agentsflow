@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 import os
+from dataclasses import dataclass
 
 
 @dataclass
@@ -12,7 +12,7 @@ class TemporalTestSettings:
     task_queue_static: bool
 
     @classmethod
-    def from_env(cls) -> "TemporalTestSettings" | None:
+    def from_env(cls) -> TemporalTestSettings | None:
         address = os.getenv("TEMPORAL_TEST_ADDRESS")
         if not address:
             return None

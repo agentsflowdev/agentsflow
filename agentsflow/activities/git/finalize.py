@@ -8,7 +8,9 @@ from pathlib import Path
 import git
 from git.exc import GitCommandError, InvalidGitRepositoryError, NoSuchPathError
 from temporalio import activity
+
 from agentsflow.utils.filesystem import safe_remove_tree
+
 from .models import FinalizeGitRequest, FinalizeGitResult
 
 
@@ -25,7 +27,7 @@ def _cleanup_worktree(worktree_path: Path) -> None:
         safe_remove_tree(
             worktree_path,
             reason="invalid worktree repository",
-            logger=activity.logger,
+            logger=activity.logger,  # type: ignore[arg-type]
         )
         return
 
@@ -52,7 +54,7 @@ def _cleanup_worktree(worktree_path: Path) -> None:
             safe_remove_tree(
                 worktree_path,
                 reason="git metadata cleanup failed",
-                logger=activity.logger,
+                logger=activity.logger,  # type: ignore[arg-type]
             )
 
 
@@ -104,9 +106,7 @@ def _finalize_git_changes(request: FinalizeGitRequest) -> FinalizeGitResult:
             push_result = remote.push(refspec=f"{branch_name}:{branch_name}")
             for info in push_result:
                 if info.flags & info.ERROR:
-                    raise RuntimeError(
-                        f"Failed to push branch '{branch_name}' to '{request.remote}': {info.summary}"
-                    )
+                    raise RuntimeError(f"Failed to push branch '{branch_name}' to '{request.remote}': {info.summary}")
             pushed = True
 
         activity.logger.info(
@@ -119,9 +119,7 @@ def _finalize_git_changes(request: FinalizeGitRequest) -> FinalizeGitResult:
             },
         )
         _cleanup_worktree(worktree_path)
-        return FinalizeGitResult(
-            branch_name=branch_name, commit_sha=commit_sha, pushed=pushed
-        )
+        return FinalizeGitResult(branch_name=branch_name, commit_sha=commit_sha, pushed=pushed)
     except GitCommandError as exc:
         detail = exc.stderr or exc.stdout or str(exc)
         activity.logger.exception(
@@ -132,9 +130,7 @@ def _finalize_git_changes(request: FinalizeGitRequest) -> FinalizeGitResult:
                 "detail": detail.strip(),
             },
         )
-        raise RuntimeError(
-            f"Git command failed while finalising worktree: {detail.strip()}"
-        ) from exc
+        raise RuntimeError(f"Git command failed while finalising worktree: {detail.strip()}") from exc
 
 
 async def finalize_git_changes(request: FinalizeGitRequest) -> FinalizeGitResult:

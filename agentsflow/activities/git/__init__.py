@@ -1,5 +1,9 @@
 """Git-related Temporal activities."""
 
+from __future__ import annotations
+
+from typing import Any
+
 from temporalio import activity
 
 from .finalize import finalize_git_changes as _finalize_git_changes
@@ -16,9 +20,7 @@ class GitActivities:
     """Bundle of git-oriented activities (worktree + finalize)."""
 
     @activity.defn(name="create_git_worktree")
-    async def create_git_worktree(
-        self, request: GitWorktreeRequest
-    ) -> GitWorktreeResult:
+    async def create_git_worktree(self, request: GitWorktreeRequest) -> GitWorktreeResult:
         activity.logger.info(
             "Starting create_git_worktree activity",
             extra={"repository": request.repository, "reference": request.reference},
@@ -35,9 +37,7 @@ class GitActivities:
         return result
 
     @activity.defn(name="finalize_git_changes")
-    async def finalize_git_changes(
-        self, request: FinalizeGitRequest
-    ) -> FinalizeGitResult:
+    async def finalize_git_changes(self, request: FinalizeGitRequest) -> FinalizeGitResult:
         activity.logger.info(
             "Starting finalize_git_changes activity",
             extra={
@@ -57,7 +57,7 @@ class GitActivities:
         )
         return result
 
-    def activities(self) -> list:
+    def activities(self) -> list[Any]:
         return [
             self.create_git_worktree,
             self.finalize_git_changes,
