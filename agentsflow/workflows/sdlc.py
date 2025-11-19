@@ -699,16 +699,19 @@ def _render_evaluation_prompt(
         "manual spot checks alone are insufficient."
     )
     parts = [_format_task_section(task)]
+    transcript_section = [
+        "Coding agent transcript:",
+        transcript.strip() or "(no output)",
+    ]
     if history:
-        parts.append("Earlier coding transcripts for context (most recent first):\n" + "\n\n".join(history))
-    parts.extend(
-        [
-            "Coding agent transcript:",
-            transcript.strip() or "(no output)",
-            f"{focus} Reply with EvaluationOutput so that task_implemented and automated_tests_implemented mirror the "
-            "transcript's own claims. When the agent notes TODOs, failures, or uncertainty, mark the appropriate flag "
-            "False and explain why.",
-        ]
+        transcript_section.append(
+            "Earlier coding transcripts for context (most recent first):\n" + "\n\n".join(history)
+        )
+    parts.extend(transcript_section)
+    parts.append(
+        f"{focus} Reply with EvaluationOutput so that task_implemented and automated_tests_implemented mirror the "
+        "transcript's own claims. When the agent notes TODOs, failures, or uncertainty, mark the appropriate flag "
+        "False and explain why."
     )
     return "\n\n".join(parts)
 
