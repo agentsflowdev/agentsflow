@@ -116,6 +116,31 @@ underlying agents when necessary.
 
 Running the Workflow
 --------------------
+You can start the full SDLC flow using one of the following methods:
+
+### Option 1: Docker Compose (Recommended)
+Run the entire stack in containers:
+
+```bash
+docker-compose up
+```
+
+This starts Temporal, the Worker, and the MCP Server. The source code is mounted so changes are reflected immediately in the worker and MCP server.
+
+### Option 2: Local Dev Script
+If you prefer running natively, use the dev launcher script. This requires `temporal` CLI to be installed or running separately.
+
+```bash
+python -m agentsflow.dev
+```
+
+This script will:
+1. Start Temporal (if not already running).
+2. Start the Worker.
+3. Start the MCP Server.
+4. Stream logs to `logs/`.
+
+### Option 3: Manual Startup
 After configuring `.env` you can start the full SDLC flow with three steps:
 
 1. **Start Temporal** – run the Temporal CLI or your own cluster (`temporal server start-dev`).
