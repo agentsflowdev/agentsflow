@@ -3,6 +3,8 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 import pytest
+from acp import RequestError
+from acp.schema import ReadTextFileRequest, WriteTextFileRequest
 
 from agentsflow.activities.agents import acp_agent
 
@@ -98,3 +100,39 @@ async def test_close_acp_session(monkeypatch):
     await acp_agent.close_session("sess-close")
 
     assert registry.removed == "sess-close"
+
+
+@pytest.mark.asyncio
+async def test_read_text_file_binary_payload_returns_request_error(tmp_path):
+    client = acp_agent._ACPClient(auto_approve=True, workspace_dir=tmp_path.resolve())
+    binary_path = (tmp_path / "binary.bin").resolve()
+    binary_path.write_bytes(b"\xff\xfe\x00")
+
+    request = ReadTextFileRequest(sessionId="sess-bin", path=str(binary_path))
+
+    with pytest.raises(RequestError) as exc_info:
+        await client.readTextFile(request)
+
+    assert exc_info.value.code == -32602
+    assert exc_info.value.data == {
+        "path": str(binary_path),
+        "reason": "file is not UTF-8 encoded text",
+        "error": "'utf-8' codec can't decode byte 0xff in position 0: invalid start byte",
+    }
+
+
+@pytest.mark.asyncio
+async def test_write_text_file_os_error_is_wrapped(tmp_path):
+    client = acp_agent._ACPClient(auto_approve=True, workspace_dir=tmp_path.resolve())
+    target_dir = (tmp_path / "cannot-write").resolve()
+    target_dir.mkdir()
+
+    request = WriteTextFileRequest(sessionId="sess-write", path=str(target_dir), content="data")
+
+    with pytest.raises(RequestError) as exc_info:
+        await client.writeTextFile(request)
+
+    assert exc_info.value.code == -32603
+    assert exc_info.value.data["path"] == str(target_dir)
+    assert exc_info.value.data["reason"] == "unable to write file"
+    assert "error" in exc_info.value.data
