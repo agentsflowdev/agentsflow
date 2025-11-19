@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import json
 import logging
 import os
 import shutil
@@ -58,10 +59,17 @@ LOGGER = logging.getLogger(__name__)
 def _debug(message: str, extra: dict[str, object] | None = None) -> None:
     """Log debug statements even when no activity context is active."""
 
+    rendered = message
+    if extra:
+        try:
+            rendered = f"{message} {json.dumps(extra, default=str, sort_keys=True)}"
+        except Exception:
+            rendered = f"{message} {extra}"
+
     try:
-        activity.logger.debug(message, extra=extra)
+        activity.logger.debug(rendered, extra=extra)
     except RuntimeError:
-        LOGGER.debug(message, extra=extra)
+        LOGGER.debug(rendered, extra=extra)
 
 
 @dataclass
@@ -365,10 +373,6 @@ class _ACPClient(Client):  # type: ignore[misc]
                 return
             async with self._buffer_lock:
                 self._current_chunks.append(text)
-            _debug(
-                "ACP chunk received",
-                {"session_id": self._session_id, "chunk_chars": len(text)},
-            )
 
     def _resolve_workspace_path(self, requested: str) -> Path:
         path = Path(requested)
