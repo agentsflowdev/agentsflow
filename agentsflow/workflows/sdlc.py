@@ -31,8 +31,8 @@ from agentsflow.activities.agents import (
 )
 
 MAX_IMPLEMENTATION_ATTEMPTS = 4
-MAX_TEST_ATTEMPTS = 3
-MAX_REVIEW_ATTEMPTS = 3
+MAX_TEST_ATTEMPTS = 5
+MAX_REVIEW_ATTEMPTS = 5
 
 
 class AgentRun(BaseModel):
@@ -547,13 +547,15 @@ def _render_coding_prompt(
     else:  # review
         base.append(
             "Perform a thorough code review of the current workspace. Highlight blockers, risks, and suggested "
-            "improvements. Do not make further code changes unless strictly required to inspect the code."
+            "improvements. Do not make further code changes unless strictly required to inspect the code. Before "
+            "concluding, run the relevant automated test or lint commands (e.g., pytest, npm test, go test) to "
+            "validate the current state and include the commands and results in your response."
         )
-
-    base.append(
-        "When finished, provide a concise summary of your actions that enumerates every file you created or modified, "
-        "explains the intent for each, and confirms you avoided unrelated or unnecessary changes."
-    )
+    if stage == "implementation" or stage == "tests":
+        base.append(
+            "When finished, provide a concise summary of your actions that enumerates every file created or modified,"
+            "explains the intent for each, and confirms you avoided unrelated or unnecessary changes."
+        )
     return "\n\n".join(base)
 
 
