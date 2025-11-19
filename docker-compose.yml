@@ -24,6 +24,7 @@ services:
       - CLAUDE_CODE_BIN
     volumes:
       - .:/app
+      - /app/.venv
     command: ["uv", "run", "python", "-m", "agentsflow.worker"]
 
   mcp-server:
@@ -40,4 +41,5 @@ services:
       - GITHUB_TOKEN
     volumes:
       - .:/app
+      - /app/.venv
     command: ["uv", "run", "fastmcp", "run", "agentsflow/mcp_server.py"]
