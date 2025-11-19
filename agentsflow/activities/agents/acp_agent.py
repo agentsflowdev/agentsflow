@@ -345,7 +345,19 @@ def _resolve_gemini_binary(binary: str | None) -> str:
     resolved = shutil.which("gemini")
     if resolved:
         return resolved
-    raise FileNotFoundError("Unable to locate `gemini` CLI. Set ACP_GEMINI_BIN or provide a path.")
+    raise FileNotFoundError("Unable to locate `gemini` binary. Set ACP_GEMINI_BIN or provide a path.")
+
+
+def _resolve_codex_binary(binary: str | None) -> str:
+    if binary:
+        return binary
+    env_value = os.getenv("ACP_CODEX_BIN")
+    if env_value:
+        return env_value
+    resolved = shutil.which("codex-acp")
+    if resolved:
+        return resolved
+    raise FileNotFoundError("Unable to locate `codex-acp` binary. Set ACP_CODEX_BIN or provide a path.")
 
 
 async def run_acp_agent(request: ACPRequest) -> ACPResponse:
@@ -387,17 +399,26 @@ async def run_acp_agent(request: ACPRequest) -> ACPResponse:
         command: list[str] = []
 
         if request.agent_type == "gemini":
-            binary = _resolve_gemini_binary(request.agent_binary)
-            command = [binary, "--experimental-acp"]
+            resolved_binary = _resolve_gemini_binary(request.agent_binary)
+            # Gemini CLI uses --experimental-acp flag
+            command = [resolved_binary, "--experimental-acp"]
+            # If a model is specified in env or elsewhere, we might want to pass it.
+            # For now, we'll assume the user configures it via env or defaults.
+            # But let's support an optional model arg if we had it in the request (we don't yet).
+            # We can check for a model env var if needed, or just rely on gemini defaults.
+            # However, the previous plan mentioned --model. Let's check if we have a way to pass it.
+            # The ACPRequest doesn't have a model field yet. We might need to add it or rely on env.
+            # For now, basic support:
             if request.model:
                 command.extend(["--model", request.model])
-            # Gemini CLI might need --sandbox if requested, but let's stick to basic ACP for now or add if needed.
-            # The example showed --sandbox as optional. We can add it if we want strict sandboxing.
-            # For now, let's assume standard behavior.
+        elif request.agent_type == "codex":
+            resolved_binary = _resolve_codex_binary(request.agent_binary)
+            # Codex ACP usually runs as the binary itself
+            command = [resolved_binary]
         else:
-            # Default to Claude
-            binary = _resolve_claude_binary(request.agent_binary)
-            command = [binary]
+            # Default to Claude if unknown or explicitly claude
+            resolved_binary = _resolve_claude_binary(request.agent_binary)
+            command = [resolved_binary]
 
         activity.logger.debug(
             "Launching ACP session",

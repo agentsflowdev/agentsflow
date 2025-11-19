@@ -56,9 +56,9 @@ class SDLCWorkflowInput(BaseModel):
         default=None,
         description="Optional git branch name to write the committed changes to.",
     )
-    coding_agent_provider: Literal["claude", "gemini"] = Field(
+    coding_agent_provider: Literal["claude", "gemini", "codex"] = Field(
         default="claude",
-        description="Which coding agent to use (Claude or Gemini).",
+        description="Which coding agent to use (Claude, Gemini, or Codex).",
     )
 
 

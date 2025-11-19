@@ -89,7 +89,7 @@ def _parse_args(argv: list[str], defaults: CLISettings) -> argparse.Namespace:
     parser.add_argument(
         "--coding-agent-provider",
         default=defaults.coding_agent_provider,
-        choices=["claude", "gemini"],
+        choices=["claude", "gemini", "codex"],
         help="Coding agent provider to use (env: SDLC_CODING_AGENT_PROVIDER).",
     )
     parser.add_argument(
