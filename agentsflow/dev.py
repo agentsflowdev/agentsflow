@@ -11,6 +11,7 @@ console = Console()
 
 # Global list to keep track of running processes for cleanup
 PROCESSES: list[asyncio.subprocess.Process] = []
+SUPPORTED_TRANSPORTS = ("stdio", "http", "sse", "streamable-http")
 
 
 async def stream_output(process: asyncio.subprocess.Process, name: str, color: str) -> None:
@@ -58,7 +59,7 @@ async def start_service(name: str, command: list[str], color: str, env: dict[str
         console.print(f"[bold red]Failed to start {name}: {e}[/bold red]")
 
 
-async def run_stack() -> None:
+async def run_stack(transport: str) -> None:
     """Run the full stack."""
     # Check if Temporal is running
     temporal_running = False
@@ -82,7 +83,21 @@ async def run_stack() -> None:
     tasks.append(start_service("Worker", [sys.executable, "-m", "agentsflow.worker"], "yellow"))
 
     # Start MCP Server
-    tasks.append(start_service("MCP", ["uv", "run", "fastmcp", "run", "agentsflow/mcp_server.py"], "magenta"))
+    tasks.append(
+        start_service(
+            "MCP",
+            [
+                "uv",
+                "run",
+                "fastmcp",
+                "run",
+                "agentsflow/mcp_server.py",
+                "--transport",
+                transport,
+            ],
+            "magenta",
+        )
+    )
 
     # Wait for all services
     await asyncio.gather(*tasks)
@@ -102,7 +117,14 @@ def handle_signal(sig: int, frame: Any) -> NoReturn:
 
 
 @click.command()
-def main() -> None:
+@click.option(
+    "--transport",
+    type=click.Choice(SUPPORTED_TRANSPORTS, case_sensitive=False),
+    default="stdio",
+    show_default=True,
+    help="Transport passed to fastmcp run when launching the MCP server.",
+)
+def main(transport: str) -> None:
     """Start the AgentsFlow local development stack."""
     # Register signal handlers
     signal.signal(signal.SIGINT, handle_signal)
@@ -110,11 +132,11 @@ def main() -> None:
 
     console.print(
         "[bold blue]AgentsFlow Local Dev Launcher[/bold blue]\n"
-        "Streaming logs from all services. Press Ctrl+C to stop.\n"
+        f"Streaming logs from all services using MCP transport '{transport}'. Press Ctrl+C to stop.\n"
     )
 
     try:
-        asyncio.run(run_stack())
+        asyncio.run(run_stack(transport=transport))
     except KeyboardInterrupt:
         handle_signal(signal.SIGINT, None)
 
