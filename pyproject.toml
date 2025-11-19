@@ -46,5 +46,5 @@ strict = true
 ignore_missing_imports = true
 exclude = ["tests/"]
 
-[tool.setuptools]
-packages = ["agentsflow"]
+[tool.setuptools.packages.find]
+include = ["agentsflow*"]
