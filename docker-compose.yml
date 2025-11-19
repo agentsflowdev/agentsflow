@@ -1,0 +1,45 @@
+services:
+  temporal:
+    image: temporalio/admin-tools:latest
+    container_name: temporal
+    ports:
+      - "7233:7233"
+      - "8233:8233"
+    environment:
+      - TEMPORAL_CLI_ADDRESS=temporal:7233
+    command: ["temporal", "server", "start-dev", "--ip", "0.0.0.0"]
+
+  worker:
+    build: .
+    container_name: agentsflow-worker
+    depends_on:
+      - temporal
+    environment:
+      - TEMPORAL_ADDRESS=temporal:7233
+      # Pass through credentials from host environment
+      - OPENAI_API_KEY
+      - JIRA_EMAIL
+      - JIRA_API_TOKEN
+      - GITHUB_TOKEN
+      - CLAUDE_CODE_BIN
+    volumes:
+      - .:/app
+      - /app/.venv
+    command: ["uv", "run", "python", "-m", "agentsflow.worker"]
+
+  mcp-server:
+    build: .
+    container_name: agentsflow-mcp
+    depends_on:
+      - temporal
+    environment:
+      - TEMPORAL_ADDRESS=temporal:7233
+      # Pass through credentials from host environment
+      - OPENAI_API_KEY
+      - JIRA_EMAIL
+      - JIRA_API_TOKEN
+      - GITHUB_TOKEN
+    volumes:
+      - .:/app
+      - /app/.venv
+    command: ["uv", "run", "fastmcp", "run", "agentsflow/mcp_server.py"]
