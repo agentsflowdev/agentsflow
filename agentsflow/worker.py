@@ -26,7 +26,6 @@ class WorkerSettings(BaseSettings):
     address: str = Field(default="127.0.0.1:7233", alias="TEMPORAL_ADDRESS")
     namespace: str = Field(default="default", alias="TEMPORAL_NAMESPACE")
     task_queue: str = Field(default="agentsflow-sdlc", alias="SDLC_TASK_QUEUE")
-    agent_binary: str | None = Field(default=None, alias="ACP_AGENT_BIN")
     auto_approve: bool = Field(default=True, alias="ACP_AUTO_APPROVE")
     log_level: str = Field(default=DEFAULT_LOG_LEVEL, alias="AGENTSFLOW_LOG_LEVEL")
 
@@ -57,12 +56,6 @@ def _parse_args(argv: list[str], defaults: WorkerSettings) -> argparse.Namespace
         help="Task queue the worker will poll (env: SDLC_TASK_QUEUE).",
     )
     parser.add_argument(
-        "--agent-binary",
-        dest="agent_binary",
-        default=defaults.agent_binary,
-        help="Path to agent binary (env: ACP_AGENT_BIN).",
-    )
-    parser.add_argument(
         "--auto-approve",
         dest="auto_approve",
         action="store_true",
@@ -87,7 +80,6 @@ async def _run_worker(args: argparse.Namespace) -> None:
     )
 
     activities = AgentsFlowActivities(
-        agent_binary=args.agent_binary,
         auto_approve=args.auto_approve,
     )
 

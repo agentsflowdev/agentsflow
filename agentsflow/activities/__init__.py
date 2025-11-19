@@ -66,10 +66,10 @@ async def close_acp_session(session_id: str) -> None:
 class AgentsFlowActivities:
     """Collection of Temporal activity entry points used by the SDLC flow."""
 
-    def __init__(self, *, agent_binary: str | None = None, auto_approve: bool = True) -> None:
+    def __init__(self, *, auto_approve: bool = True) -> None:
         self.git = GitActivities()
         self.issues = IssueActivities()
-        self.agents = AgentActivities(agent_binary=agent_binary, auto_approve=auto_approve)
+        self.agents = AgentActivities(auto_approve=auto_approve)
 
         # Backwards-compatible attribute exposure
         self.create_git_worktree = self.git.create_git_worktree

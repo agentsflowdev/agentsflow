@@ -21,7 +21,7 @@ services:
       - JIRA_EMAIL
       - JIRA_API_TOKEN
       - GITHUB_TOKEN
-      - CLAUDE_CODE_BIN
+      - ACP_AUTO_APPROVE
     volumes:
       - .:/app
       - /app/.venv

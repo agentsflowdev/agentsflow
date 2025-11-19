@@ -45,8 +45,7 @@ from .sdlc import (
 class AgentActivities:
     """Activities involving Claude ACP sessions and LLM planning agents."""
 
-    def __init__(self, *, agent_binary: str | None = None, auto_approve: bool = True) -> None:
-        self._agent_binary = agent_binary
+    def __init__(self, *, auto_approve: bool = True) -> None:
         self._auto_approve = auto_approve
 
     @activity.defn(name="run_acp_agent")
@@ -58,13 +57,10 @@ class AgentActivities:
                 "session_id": request.session_id,
                 "workspace_dir": request.workspace_dir,
                 "prompt_chars": len(request.prompt),
-                "has_binary_override": self._agent_binary is not None,
                 "auto_approve_default": self._auto_approve,
             },
         )
         req = request
-        if req.agent_binary is None and self._agent_binary is not None:
-            req = replace(req, agent_binary=self._agent_binary)
         if req.auto_approve is None:
             req = replace(req, auto_approve=self._auto_approve)
         activity.logger.debug(
