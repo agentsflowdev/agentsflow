@@ -294,12 +294,17 @@ class SDLCWorkflow:
                         feedback=coding_feedback,
                     )
                     coding_response = await _invoke_coding_agent("implementation", coding_prompt, session_kind="coding")
+                    implementation_history = _history_transcripts(
+                        agent_runs[:-1],
+                        stages=("implementation", "tests"),
+                    )
                     evaluation = await _run_agent_activity(
                         "run_evaluation_agent",
                         _render_evaluation_prompt(
                             stage="implementation",
                             task=task_payload,
                             transcript=coding_response.message,
+                            history=implementation_history,
                         ),
                         EvaluationOutput,
                     )
@@ -356,6 +361,10 @@ class SDLCWorkflow:
                             feedback=tests_feedback,
                         )
                         test_response = await _invoke_coding_agent("tests", tests_prompt, session_kind="coding")
+                        tests_history = _history_transcripts(
+                            agent_runs[:-1],
+                            stages=("implementation", "tests"),
+                        )
 
                         evaluation = await _run_agent_activity(
                             "run_evaluation_agent",
@@ -363,6 +372,7 @@ class SDLCWorkflow:
                                 stage="tests",
                                 task=task_payload,
                                 transcript=test_response.message,
+                                history=tests_history,
                             ),
                             EvaluationOutput,
                         )
@@ -652,8 +662,33 @@ def _render_coding_prompt(
     return "\n\n".join(base)
 
 
+def _history_transcripts(
+    runs: Sequence[AgentRun],
+    *,
+    stages: Sequence[Literal["implementation", "tests", "review"]] | None = None,
+    limit: int = 3,
+) -> list[str]:
+    """Return formatted snippets of the most recent coding transcripts."""
+
+    allowed = set(stages) if stages else {"implementation", "tests", "review"}
+    entries = [
+        (run.stage, run.message.strip()) for run in runs if run.stage in allowed and run.message and run.message.strip()
+    ]
+    if not entries:
+        return []
+    window = entries[-limit:]
+    formatted: list[str] = []
+    for idx, (stage, message) in enumerate(reversed(window), start=1):
+        formatted.append(f"Prior {stage} transcript #{idx}:\n{message}")
+    return formatted
+
+
 def _render_evaluation_prompt(
-    *, stage: Literal["implementation", "tests"], task: JiraTaskPayload, transcript: str
+    *,
+    stage: Literal["implementation", "tests"],
+    task: JiraTaskPayload,
+    transcript: str,
+    history: Sequence[str] | None = None,
 ) -> str:
     focus = (
         "Decide whether the Jira task appears complete based on the transcript narrative. Assume the coding agent's "
@@ -663,14 +698,21 @@ def _render_evaluation_prompt(
         "implemented when the transcript references running automated suites, commands, or specific test artefacts; "
         "manual spot checks alone are insufficient."
     )
-    parts = [
-        _format_task_section(task),
+    parts = [_format_task_section(task)]
+    transcript_section = [
         "Coding agent transcript:",
         transcript.strip() or "(no output)",
+    ]
+    if history:
+        transcript_section.append(
+            "Earlier coding transcripts for context (most recent first):\n" + "\n\n".join(history)
+        )
+    parts.extend(transcript_section)
+    parts.append(
         f"{focus} Reply with EvaluationOutput so that task_implemented and automated_tests_implemented mirror the "
         "transcript's own claims. When the agent notes TODOs, failures, or uncertainty, mark the appropriate flag "
-        "False and explain why.",
-    ]
+        "False and explain why."
+    )
     return "\n\n".join(parts)
 
 
