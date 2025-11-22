@@ -48,7 +48,7 @@ from temporalio.worker import Worker
 
 from agentsflow import AgentsFlowActivities, GitWorktreeRequest
 
-activities = AgentsFlowActivities(claude_binary="/usr/local/bin/claude-code-acp")
+activities = AgentsFlowActivities()
 
 worker = Worker(
     client=temporal_client,
@@ -56,8 +56,8 @@ worker = Worker(
     activities=[
         activities.create_git_worktree,
         activities.read_issue,
-        activities.run_claude_code,
-        activities.close_claude_session,
+        activities.run_acp_agent,
+        activities.close_acp_session,
     ],
 )
 
@@ -146,7 +146,7 @@ After configuring `.env` you can start the full SDLC flow with three steps:
 1. **Start Temporal** – run the Temporal CLI or your own cluster (`temporal server start-dev`).
 2. **Launch the worker** – from the project root, the worker reads `.env` for
    values like `TEMPORAL_ADDRESS`, `OPENAI_API_KEY`, `SDLC_TASK_QUEUE`,
-   `CLAUDE_CODE_BIN`, and `CLAUDE_AUTO_APPROVE` and falls back to flags when
+   `ACP_AUTO_APPROVE` and falls back to flags when
    provided:
 
    ```bash
@@ -224,9 +224,9 @@ Development Notes
   `pyproject.toml` changes.
 - Activities use `asyncio.to_thread` to offload blocking I/O; no additional
   threading primitives are required when invoking them from workflows.
-- When working on the Claude ACP activity, set the `ACP_CLAUDE_BIN` environment
-  variable or supply `claude_binary` to `AgentsFlowActivities` to point at your
-  local `claude-code-acp` binary.
+- When working with ACP agents, set the appropriate environment variable for your
+  agent: `ACP_CLAUDE_BIN` for Claude, `ACP_GEMINI_BIN` for Gemini, or
+  `ACP_CODEX_BIN` for Codex. These point to the respective binaries.
 
 License
 -------

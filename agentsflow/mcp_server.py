@@ -40,6 +40,7 @@ def _build_workflow_args(
         task_queue=defaults.task_queue,
         model=defaults.model,
         branch_name=defaults.branch_name,
+        coding_agent_provider=defaults.coding_agent_provider,
     )
 
 
@@ -71,6 +72,7 @@ async def _start_workflow_tool_impl(
         "issue_url": issue_url,
         "repository_path": repository_path,
         "branch_name": args.branch_name,
+        "coding_agent_provider": args.coding_agent_provider,
     }
 
     if remind_about_result:

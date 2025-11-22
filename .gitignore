@@ -4,3 +4,5 @@ __pycache__/
 .env
 *.egg-info/
 logs/
+.claude
+.mcp.json

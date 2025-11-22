@@ -1,9 +1,9 @@
 """Workflow entry points for AgentsFlow."""
 
-from .sdlc import ClaudeRun, SDLCWorkflow, SDLCWorkflowInput, SDLCWorkflowOutput
+from .sdlc import AgentRun, SDLCWorkflow, SDLCWorkflowInput, SDLCWorkflowOutput
 
 __all__ = [
-    "ClaudeRun",
+    "AgentRun",
     "SDLCWorkflow",
     "SDLCWorkflowInput",
     "SDLCWorkflowOutput",
