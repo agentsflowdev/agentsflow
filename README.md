@@ -7,6 +7,11 @@ infrastructure steps—provisioning Git worktrees, pulling Jira or GitHub issue 
 and interacting with Claude Code via the Agent Client Protocol (ACP)—so they
 can be orchestrated inside Temporal workflows.
 
+Documentation
+-------------
+- Docs are built with MkDocs Material and versioned via mike. Preview locally with `uv run mkdocs serve`.
+- Source lives in `docs/`; published site will be available at https://docs.agentsflow.dev (via GitHub Pages).
+
 Contents
 --------
 - **Git Worktree**: creates an isolated worktree from a local repository or
