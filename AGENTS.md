@@ -1,5 +1,7 @@
 # Repository Guidelines
 
+Note: the canonical contributor docs are moving into the MkDocs site under `docs/contributing/` (preview with `uv run mkdocs serve`). This file remains as a quick pointer until the migration is complete.
+
 ## Project Structure & Module Organization
 Temporal activities live in `agentsflow/activities/` (git worktree, issue ingestion, Claude ACP). Workflows reside in `agentsflow/workflows/`; entry points are `agentsflow/worker.py` and `agentsflow/cli.py`. Shared agent utilities (`agentsflow/agents/`, `agentsflow/issues/`) feed both the CLI and the FastMCP server (`agentsflow/mcp_server.py`). Tests in `tests/` mirror module names (e.g., `test_sdlc_workflow.py`), and SDLC fixtures live in `SDLC.json`.
 

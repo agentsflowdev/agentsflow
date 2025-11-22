@@ -23,6 +23,12 @@ dev = [
     "ruff>=0.1.0",
     "mypy>=1.0.0",
     "pre-commit>=3.5.0",
+    "mkdocs>=1.6.0",
+    "mkdocs-material>=9.5.0",
+    "mkdocs-autorefs>=1.0.1",
+    "mkdocstrings[python]>=0.24.3",
+    "mike>=2.1.1",
+    "pymdown-extensions>=10.11.2",
 ]
 
 [tool.ruff]
