@@ -7,7 +7,13 @@ from typing import Any
 
 from fastmcp import Context, FastMCP
 
-from agentsflow.cli import CLISettings, _await_workflow_result, _start_workflow_handle
+from agentsflow.cli import (
+    ClarificationPending,
+    CLISettings,
+    _await_workflow_result,
+    _create_temporal_client,
+    _start_workflow_handle,
+)
 from agentsflow.logging_utils import configure_logging
 
 configure_logging(CLISettings().log_level)
@@ -18,6 +24,7 @@ mcp = FastMCP(
         "AgentsFlow exposes the SDLC Temporal workflow over MCP. Start the workflow with "
         "start_sdlc_workflow (issue_url + repository_path) to receive the workflow_id/run_id, then call "
         "await_sdlc_workflow_result with the workflow_id when you're ready to fetch the SDLCWorkflowOutput. "
+        "If a run pauses for clarifications, answer them via provide_sdlc_clarification before waiting again. "
         "The repository_path argument must be the absolute filesystem path to the repo root "
         "(e.g., /Users/acme/src/app). "
         "Authentication, Temporal connection details, and overrides are read from environment variables or .env."
@@ -88,13 +95,35 @@ async def _await_workflow_tool_impl(
 ) -> dict[str, Any]:
     defaults = CLISettings()
     await ctx.info(f"Waiting for workflow {workflow_id} (latest run) to finish.")
-    result = await _await_workflow_result(
-        defaults.address,
-        defaults.namespace,
-        workflow_id,
-    )
+    try:
+        result = await _await_workflow_result(
+            defaults.address,
+            defaults.namespace,
+            workflow_id,
+        )
+    except ClarificationPending as pending:
+        await ctx.info("Workflow paused waiting for clarification.")
+        return pending.payload
     await ctx.info("Workflow completed successfully.")
     return result.model_dump()
+
+
+@mcp.tool
+async def provide_sdlc_clarification(
+    workflow_id: str,
+    answers: list[str],
+    assumptions: list[str] | None = None,
+    *,
+    ctx: Context,
+) -> dict[str, Any]:
+    """Send clarification answers to an in-flight workflow."""
+
+    defaults = CLISettings()
+    client = await _create_temporal_client(defaults.address, defaults.namespace)
+    handle = client.get_workflow_handle(workflow_id)
+    await handle.signal("provide_clarification", args=[answers, assumptions or []])
+    await ctx.info("Clarification signal delivered.")
+    return {"status": "clarification_delivered"}
 
 
 @mcp.tool

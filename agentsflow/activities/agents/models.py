@@ -77,6 +77,20 @@ class ReleasePlanOutput(BaseModel):
     follow_up_tasks: list[str] = Field(default_factory=list, description="Any TODOs that should follow the PR.")
 
 
+class ClarificationOutput(BaseModel):
+    """Signals whether the workflow must pause for missing requirements."""
+
+    clarification_required: bool = Field(..., description="True when outstanding questions block further automation.")
+    open_questions: list[str] = Field(
+        default_factory=list,
+        description="Actionable questions that must be answered before continuing.",
+    )
+    assumptions: list[str] = Field(
+        default_factory=list,
+        description="Important assumptions or decisions that should be confirmed.",
+    )
+
+
 __all__ = [
     "JiraTaskPayload",
     "ImplementationOutput",
@@ -84,4 +98,5 @@ __all__ = [
     "TestPlanOutput",
     "ReviewOutput",
     "ReleasePlanOutput",
+    "ClarificationOutput",
 ]

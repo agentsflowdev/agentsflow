@@ -22,6 +22,7 @@ from agentsflow.activities import (
     IssueRequest,
 )
 from agentsflow.activities.agents import (
+    ClarificationOutput,
     EvaluationOutput,
     ImplementationOutput,
     JiraTaskPayload,
@@ -84,6 +85,38 @@ class SDLCWorkflowOutput(BaseModel):
 class SDLCWorkflow:
     """Temporal workflow mirroring the Agentsflow SDLC pipeline."""
 
+    def __init__(self) -> None:
+        self._clarification_state: ClarificationOutput | None = None
+        self._clarification_resolved = False
+        self._clarification_answers: list[str] = []
+        self._clarification_assumptions: list[str] = []
+        self._workflow_completed = False
+        self._task_payload: JiraTaskPayload | None = None
+
+    @workflow.signal
+    async def provide_clarification(
+        self,
+        answers: Sequence[str] | None = None,
+        assumptions: Sequence[str] | None = None,
+    ) -> None:
+        if self._clarification_state is None:
+            return
+        self._clarification_answers = list(answers or [])
+        self._clarification_assumptions = list(assumptions or [])
+        self._clarification_resolved = True
+
+    @workflow.query
+    def clarification_status(self) -> dict[str, Any]:
+        if self._clarification_state and not self._clarification_resolved:
+            return {
+                "status": "clarification_required",
+                "questions": list(self._clarification_state.open_questions),
+                "assumptions": list(self._clarification_state.assumptions),
+            }
+        if self._workflow_completed:
+            return {"status": "completed"}
+        return {"status": "running"}
+
     @workflow.run
     async def run(self, params: SDLCWorkflowInput) -> SDLCWorkflowOutput:  # noqa: D401
         logger = workflow.logger
@@ -128,6 +161,48 @@ class SDLCWorkflow:
         )
 
         task_payload = _build_task_payload(issue_result)
+        self._task_payload = task_payload
+
+        clarification = await workflow.execute_activity(
+            "run_clarification_agent",
+            _render_clarification_prompt(task_payload),
+            start_to_close_timeout=timedelta(minutes=2),
+            retry_policy=RetryPolicy(maximum_attempts=1),
+            result_type=ClarificationOutput,
+        )
+        if clarification.clarification_required:
+            logger.warning(
+                "Workflow waiting for clarification",
+                extra={"questions": clarification.open_questions},
+            )
+            self._clarification_state = clarification
+            self._clarification_resolved = False
+            question_notes = [
+                f"Clarification question: {question}" for question in clarification.open_questions if question
+            ]
+            if question_notes and self._task_payload is not None:
+                updated_comments = list(self._task_payload.comments)
+                updated_comments.extend(question_notes)
+                self._task_payload.comments = updated_comments
+                task_payload.comments = updated_comments
+            await workflow.wait_condition(lambda: self._clarification_resolved)
+            clarification_notes = [
+                f"Clarification answer: {answer}" for answer in self._clarification_answers if answer
+            ]
+            assumption_notes = [
+                f"Clarification assumption: {assumption}"
+                for assumption in self._clarification_assumptions
+                if assumption
+            ]
+            note_entries = clarification_notes + assumption_notes
+            if note_entries and self._task_payload is not None:
+                updated_comments = list(self._task_payload.comments)
+                updated_comments.extend(note_entries)
+                self._task_payload.comments = updated_comments
+                task_payload.comments = updated_comments
+            self._clarification_state = None
+            self._clarification_answers = []
+            self._clarification_assumptions = []
 
         coding_session_id: str | None = None
         review_session_id: str | None = None
@@ -497,6 +572,7 @@ class SDLCWorkflow:
                 "commit_pushed": output.commit_pushed,
             },
         )
+        self._workflow_completed = True
         return output
 
 
@@ -512,6 +588,23 @@ def _build_task_payload(details: IssueDetails) -> JiraTaskPayload:
         description=details.description,
         comments=comments,
     )
+
+
+def _render_clarification_prompt(task: JiraTaskPayload) -> str:
+    parts = [
+        _format_task_section(task),
+        (
+            "Before any coding begins, verify the requirements are fully specified. Identify conflicting acceptance "
+            "criteria, missing environment details, undefined inputs/outputs, deployment concerns, or required "
+            "approvals that a coding agent cannot guess."
+        ),
+        (
+            "Respond with ClarificationOutput. Set clarification_required to True only when the open questions would "
+            "block progress, and list each question as a concise bullet the stakeholder can answer. Even when "
+            "everything is clear, include any assumptions that should be confirmed downstream."
+        ),
+    ]
+    return "\n\n".join(parts)
 
 
 def _render_coding_prompt(

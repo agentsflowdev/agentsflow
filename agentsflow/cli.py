@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import contextlib
 import json
 import os
 import sys
@@ -21,6 +22,14 @@ from agentsflow.logging_utils import (
     configure_logging,
 )
 from agentsflow.workflows import SDLCWorkflow, SDLCWorkflowInput, SDLCWorkflowOutput
+
+STATUS_POLL_INTERVAL_SECONDS = 2
+
+
+class ClarificationPending(Exception):
+    def __init__(self, payload: dict[str, Any]) -> None:
+        super().__init__("clarification_required")
+        self.payload = payload
 
 
 class CLISettings(BaseSettings):
@@ -175,12 +184,29 @@ async def _await_workflow_result(
         run_id=run_id,
         result_type=SDLCWorkflowOutput,
     )
-    return await handle.result()  # type: ignore[no-any-return]
+    return await _wait_for_completion(handle)
 
 
 async def _run_workflow(args: argparse.Namespace) -> SDLCWorkflowOutput:
     handle = await _start_workflow_handle(args)
-    return await handle.result()  # type: ignore[no-any-return]
+    return await _wait_for_completion(handle)
+
+
+async def _wait_for_completion(handle: WorkflowHandle[SDLCWorkflowOutput, Any]) -> SDLCWorkflowOutput:
+    result_task = asyncio.create_task(handle.result())
+    try:
+        while True:
+            if result_task.done():
+                return result_task.result()  # type: ignore[no-any-return]
+            status: dict[str, Any] = await handle.query("clarification_status")
+            if status.get("status") == "clarification_required":
+                raise ClarificationPending(status)
+            await asyncio.sleep(STATUS_POLL_INTERVAL_SECONDS)
+    finally:
+        if not result_task.done():
+            result_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await result_task
 
 
 def _print_result(result: SDLCWorkflowOutput, as_json: bool) -> None:
@@ -192,12 +218,32 @@ def _print_result(result: SDLCWorkflowOutput, as_json: bool) -> None:
         print(f"{key}: {value}")
 
 
+def _print_clarification(payload: dict[str, Any], as_json: bool) -> None:
+    if as_json:
+        print(json.dumps(payload, indent=2))
+        return
+    print("Workflow paused: clarification required.")
+    if payload["questions"]:
+        print("Questions to resolve:")
+        for question in payload["questions"]:
+            print(f"- {question}")
+    else:
+        print("No specific questions were returned.")
+    if payload["assumptions"]:
+        print("Assumptions to confirm:")
+        for assumption in payload["assumptions"]:
+            print(f"- {assumption}")
+
+
 def main(argv: list[str] | None = None) -> int:
     defaults = CLISettings()
     configure_logging(defaults.log_level)
     args = _parse_args(argv or sys.argv[1:], defaults)
     try:
         result = asyncio.run(_run_workflow(args))
+    except ClarificationPending as pending:
+        _print_clarification(pending.payload, args.json)
+        return 2
     except KeyboardInterrupt:
         return 130
     except Exception as exc:  # pragma: no cover - CLI error reporting

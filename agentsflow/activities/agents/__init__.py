@@ -14,6 +14,7 @@ from .acp_agent import (
     run_acp_agent as _run_acp_agent,
 )
 from .models import (
+    ClarificationOutput,
     EvaluationOutput,
     ImplementationOutput,
     JiraTaskPayload,
@@ -24,6 +25,9 @@ from .models import (
 from .sdlc import (
     DEFAULT_MODEL_NAME,
     MODEL_ENV_VAR,
+)
+from .sdlc import (
+    run_clarification_agent as _run_clarification_agent,
 )
 from .sdlc import (
     run_evaluation_agent as _run_evaluation_agent,
@@ -152,6 +156,20 @@ class AgentActivities:
         )
         return result
 
+    @activity.defn(name="run_clarification_agent")
+    async def run_clarification_agent(self, prompt: str) -> ClarificationOutput:
+        activity.logger.info("Running clarification agent", extra={"prompt_chars": len(prompt)})
+        result = await _run_clarification_agent(prompt)
+        activity.logger.info(
+            "Clarification agent completed",
+            extra={
+                "prompt_chars": len(prompt),
+                "requires_clarification": result.clarification_required,
+                "questions": len(result.open_questions),
+            },
+        )
+        return result
+
     @activity.defn(name="run_release_agent")
     async def run_release_agent(self, prompt: str) -> ReleasePlanOutput:
         activity.logger.info("Running release agent", extra={"prompt_chars": len(prompt)})
@@ -173,6 +191,7 @@ class AgentActivities:
             self.run_evaluation_agent,
             self.run_tests_agent,
             self.run_review_agent,
+            self.run_clarification_agent,
             self.run_release_agent,
         ]
 
@@ -190,10 +209,12 @@ __all__ = [
     "TestPlanOutput",
     "ReviewOutput",
     "ReleasePlanOutput",
+    "ClarificationOutput",
     "run_implementation_agent",
     "run_evaluation_agent",
     "run_tests_agent",
     "run_review_agent",
+    "run_clarification_agent",
     "AgentActivities",
     "run_release_agent",
 ]
@@ -204,4 +225,5 @@ run_implementation_agent = _run_implementation_agent
 run_evaluation_agent = _run_evaluation_agent
 run_tests_agent = _run_tests_agent
 run_review_agent = _run_review_agent
+run_clarification_agent = _run_clarification_agent
 run_release_agent = _run_release_agent
