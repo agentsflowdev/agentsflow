@@ -8,8 +8,6 @@ from .activities import (
     GitWorktreeResult,
     IssueDetails,
     IssueRequest,
-    JiraTaskDetails,
-    JiraTaskRequest,
     close_acp_session,
 )
 
@@ -21,7 +19,5 @@ __all__ = [
     "GitWorktreeResult",
     "IssueDetails",
     "IssueRequest",
-    "JiraTaskDetails",
-    "JiraTaskRequest",
     "close_acp_session",
 ]

@@ -69,6 +69,9 @@ package. Consult the docstrings in `agentsflow/activities/*.py` for parameter
 details and payload structures. Issue providers read their credentials directly
 from the worker environment: export `JIRA_EMAIL`, `JIRA_API_TOKEN`, and
 `GITHUB_TOKEN` (plus optional `JIRA_TIMEOUT_SECONDS` / `GITHUB_TIMEOUT_SECONDS`)
+Optional Jira overrides:
+
+- `JIRA_HOST_ALLOWLIST` – comma-separated hostnames (e.g. `issues.company.com,bugs.example.org`) treated as Jira even if they lack `atlassian.net`/`jira` in the domain.
 before starting the worker so every activity invocation can authenticate.
 
 SDLC Workflow
@@ -160,7 +163,7 @@ After configuring `.env` you can start the full SDLC flow with three steps:
 3. **Trigger the workflow** – in another shell run the CLI. Any flag overrides
    the `.env` values; for a minimal run specify the issue URL and repository path
    if they are not already present as `SDLC_ISSUE_URL` / `SDLC_REPOSITORY` (or
-   the legacy `SDLC_JIRA_URL`) in `.env`:
+   in `.env`:
 
    ```bash
    python -m agentsflow.cli \
@@ -197,13 +200,13 @@ Run the server over stdio (ideal for MCP-compatible clients):
 uv run fastmcp run agentsflow/mcp_server.py
 ```
 
-Clients supply the Jira URL and absolute repository path when calling the tool. The returned payload is the structured
+Clients supply the issue URL and absolute repository path when calling the tool. The returned payload is the structured
 `SDLCWorkflowOutput` from Temporal, allowing downstream automations to inspect paths, Claude transcripts, and verification artefacts.
 
 Workflow stages
 ---------------
-1. **Git worktree & Jira fetch** – activities clone an isolated worktree and
-   pull the Jira task metadata.
+1. **Git worktree & issue fetch** – activities clone an isolated worktree and
+   pull the issue metadata.
 2. **Coding agent (Claude Code ACP)** – the workflow prompts the Claude ACP
    binary to implement the task directly inside the worktree. It loops through
    ACP sessions until the verification checks confirm the task is complete.

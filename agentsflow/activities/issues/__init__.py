@@ -9,14 +9,6 @@ from temporalio import activity
 # Import providers for their side-effect registrations.
 from . import github as _github_provider  # noqa: F401
 from . import jira as _jira_provider  # noqa: F401
-from .jira import (
-    JiraComment,
-    JiraTaskDetails,
-    JiraTaskRequest,
-)
-from .jira import (
-    fetch_jira_task as _fetch_jira_task,
-)
 from .models import IssueComment, IssueDetails
 from .reader import (
     IssueProvider,
@@ -31,19 +23,6 @@ from .reader import (
 
 class IssueActivities:
     """Bundle of issue-tracker activities (Jira fetch + generic reader)."""
-
-    @activity.defn(name="fetch_jira_task")
-    async def fetch_jira_task(self, request: JiraTaskRequest) -> IssueDetails:
-        activity.logger.info(
-            "Fetching Jira task",
-            extra={"task_url": request.task_url, "timeout": request.timeout_seconds},
-        )
-        result = await _fetch_jira_task(request)
-        activity.logger.info(
-            "Fetched Jira task",
-            extra={"task_url": request.task_url, "issue_key": result.issue_key},
-        )
-        return result
 
     @activity.defn(name="read_issue")
     async def read_issue(self, request: IssueRequest) -> IssueDetails:
@@ -67,7 +46,7 @@ class IssueActivities:
         return result
 
     def activities(self) -> list[Any]:
-        return [self.fetch_jira_task, self.read_issue]
+        return [self.read_issue]
 
 
 __all__ = [
@@ -76,15 +55,8 @@ __all__ = [
     "IssueDetails",
     "IssueProvider",
     "IssueRequest",
-    "JiraComment",
-    "JiraTaskDetails",
-    "JiraTaskRequest",
-    "fetch_jira_task",
     "list_issue_providers",
     "read_issue",
     "register_issue_provider",
 ]
-
-
-fetch_jira_task = _fetch_jira_task
 read_issue = _read_issue

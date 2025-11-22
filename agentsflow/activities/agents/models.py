@@ -7,7 +7,7 @@ from collections.abc import Sequence
 from pydantic import BaseModel, Field
 
 
-class JiraTaskPayload(BaseModel):
+class IssuePayload(BaseModel):
     """Minimal payload describing an issue fetched from Jira, GitHub, etc."""
 
     issue_key: str
@@ -92,7 +92,7 @@ class ClarificationOutput(BaseModel):
 
 
 __all__ = [
-    "JiraTaskPayload",
+    "IssuePayload",
     "ImplementationOutput",
     "EvaluationOutput",
     "TestPlanOutput",

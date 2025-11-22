@@ -38,7 +38,6 @@ class CLISettings(BaseSettings):
     repository: str | None = Field(default=None, alias="SDLC_REPOSITORY")
     reference: str | None = Field(default=None, alias="SDLC_REFERENCE")
     issue_url: str | None = Field(default=None, alias="SDLC_ISSUE_URL")
-    jira_url: str | None = Field(default=None, alias="SDLC_JIRA_URL")
     address: str = Field(default="127.0.0.1:7233", alias="TEMPORAL_ADDRESS")
     namespace: str = Field(default="default", alias="TEMPORAL_NAMESPACE")
     task_queue: str = Field(default="agentsflow-sdlc", alias="SDLC_TASK_QUEUE")
@@ -65,14 +64,12 @@ def _parse_args(argv: list[str], defaults: CLISettings) -> argparse.Namespace:
         required=defaults.repository is None,
         help="Local path or remote URL to the git repository (env: SDLC_REPOSITORY).",
     )
-    issue_url_default = defaults.issue_url or defaults.jira_url
     parser.add_argument(
         "--issue-url",
-        "--jira-url",
         dest="issue_url",
-        default=issue_url_default,
-        required=issue_url_default is None,
-        help="URL of the issue to process (env: SDLC_ISSUE_URL or SDLC_JIRA_URL).",
+        default=defaults.issue_url,
+        required=defaults.issue_url is None,
+        help="URL of the issue to process (env: SDLC_ISSUE_URL).",
     )
     parser.add_argument(
         "--reference",

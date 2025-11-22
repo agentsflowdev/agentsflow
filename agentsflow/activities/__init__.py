@@ -25,15 +25,7 @@ from .git import (
     create_git_worktree,
     finalize_git_changes,
 )
-from .issues import (
-    IssueActivities,
-    IssueDetails,
-    IssueRequest,
-    JiraTaskDetails,
-    JiraTaskRequest,
-    fetch_jira_task,
-    read_issue,
-)
+from .issues import IssueActivities, IssueDetails, IssueRequest, read_issue
 
 __all__ = [
     "AgentsFlowActivities",
@@ -53,9 +45,6 @@ __all__ = [
     "ReviewOutput",
     "ReleasePlanOutput",
     "ClarificationOutput",
-    "JiraTaskDetails",
-    "JiraTaskRequest",
-    "fetch_jira_task",
     "read_issue",
     "close_acp_session",
 ]
@@ -76,7 +65,6 @@ class AgentsFlowActivities:
         # Backwards-compatible attribute exposure
         self.create_git_worktree = self.git.create_git_worktree
         self.finalize_git_changes = self.git.finalize_git_changes
-        self.fetch_jira_task = self.issues.fetch_jira_task
         self.read_issue = self.issues.read_issue
         self.run_acp_agent = self.agents.run_acp_agent
         self.close_acp_session = self.agents.close_acp_session
