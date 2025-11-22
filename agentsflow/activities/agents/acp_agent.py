@@ -417,11 +417,14 @@ def _pick_preferred_option(
 
 
 def _is_within_root(path: Path, root: Path) -> bool:
+    # NOTE: Path.resolve() already normalises symlinks like /var -> /private/var on macOS.
+    path_resolved = path.resolve()
+    root_resolved = root.resolve()
     try:
-        path.relative_to(root)
+        return os.path.commonpath([path_resolved, root_resolved]) == str(root_resolved)
     except ValueError:
+        # Different drives/platform-specific edge cases.
         return False
-    return True
 
 
 async def _shutdown_process(

@@ -649,9 +649,9 @@ def _render_coding_prompt(
         )
     else:  # review
         base.append(
-            "Perform a thorough code review of the current workspace. Highlight blockers, risks, and suggested "
-            "improvements. Do not make further code changes unless strictly required to inspect the code. Before "
-            "concluding, run the relevant automated test or lint commands (e.g., pytest, npm test, go test) to "
+            "Perform a thorough code review of the changes made in the current workspace. Highlight blockers, risks,"
+            "and suggested improvements. Do not make further code changes unless strictly required to inspect the code."
+            "Before concluding, run the relevant automated test or lint commands (e.g., pytest, npm test, go test) to "
             "validate the current state and include the commands and results in your response."
         )
     if stage == "implementation" or stage == "tests":
