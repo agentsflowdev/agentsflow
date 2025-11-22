@@ -7,7 +7,6 @@ import os
 import re
 from collections.abc import Iterable, Sequence
 from contextlib import suppress
-from dataclasses import dataclass
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
@@ -52,14 +51,6 @@ def _require_jira_credentials() -> tuple[str, str]:
     if not jira_email or not jira_api_token:
         raise ValueError(f"Jira provider requires {JIRA_EMAIL_ENV} and {JIRA_API_TOKEN_ENV} environment variables.")
     return jira_email, jira_api_token
-
-
-@dataclass
-class JiraTaskRequest:
-    task_url: str
-    jira_email: str
-    jira_api_token: str
-    timeout_seconds: float = 15.0
 
 
 def _iter_url_values(path: str) -> Iterable[str]:
@@ -331,10 +322,10 @@ def _fetch_issue_details(
     raise RuntimeError(f"Failed to retrieve Jira issue '{issue_key}' for unknown reasons.")
 
 
-async def fetch_jira_task(request: JiraTaskRequest) -> IssueDetails:
-    task_url = (request.task_url or "").strip()
-    email = (request.jira_email or "").strip()
-    token = (request.jira_api_token or "").strip()
+async def _fetch_jira_issue(*, task_url: str, email: str, token: str, timeout_seconds: float = 15.0) -> IssueDetails:
+    task_url = (task_url or "").strip()
+    email = (email or "").strip()
+    token = (token or "").strip()
 
     if not task_url:
         raise ValueError("Task URL is required.")
@@ -347,7 +338,7 @@ async def fetch_jira_task(request: JiraTaskRequest) -> IssueDetails:
         extra={
             "issue_key": issue_key,
             "base_candidates": base_candidates,
-            "timeout_seconds": request.timeout_seconds,
+            "timeout_seconds": timeout_seconds,
         },
     )
 
@@ -359,7 +350,7 @@ async def fetch_jira_task(request: JiraTaskRequest) -> IssueDetails:
             email,
             token,
             original,
-            timeout_seconds=request.timeout_seconds,
+            timeout_seconds=timeout_seconds,
         )
     except PermissionError:
         activity.logger.warning(
@@ -405,13 +396,12 @@ class JiraIssueProvider(IssueProvider):
         jira_email, jira_api_token = _require_jira_credentials()
         timeout_override = os.environ.get(JIRA_TIMEOUT_ENV)
         timeout_seconds = _coerce_timeout(timeout_override, request.timeout_seconds)
-        jira_request = JiraTaskRequest(
+        return await _fetch_jira_issue(
             task_url=request.issue_url,
-            jira_email=jira_email,
-            jira_api_token=jira_api_token,
+            email=jira_email,
+            token=jira_api_token,
             timeout_seconds=timeout_seconds,
         )
-        return await fetch_jira_task(jira_request)
 
 
 def _coerce_timeout(value: str | None, default: float) -> float:
@@ -429,15 +419,4 @@ def _coerce_timeout(value: str | None, default: float) -> float:
 register_issue_provider(JiraIssueProvider())
 
 
-# Backwards-compatible aliases for downstream imports.
-JiraComment = IssueComment
-JiraTaskDetails = IssueDetails
-
-
-__all__ = [
-    "JiraIssueProvider",
-    "JiraComment",
-    "JiraTaskDetails",
-    "JiraTaskRequest",
-    "fetch_jira_task",
-]
+__all__ = ["JiraIssueProvider"]

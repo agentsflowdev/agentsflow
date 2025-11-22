@@ -7,13 +7,12 @@ import pytest
 
 from agentsflow.activities.issues import IssueRequest, read_issue
 from agentsflow.activities.issues.github import GitHubIssueProvider
-from agentsflow.activities.issues.jira import JiraTaskRequest
 from agentsflow.activities.issues.models import IssueComment, IssueDetails
 
 
 @pytest.mark.asyncio
 async def test_read_issue_routes_to_jira(monkeypatch):
-    captured: dict[str, JiraTaskRequest] = {}
+    captured: dict[str, IssueRequest] = {}
     expected = IssueDetails(
         issue_key="ABC-123",
         issue_url="https://example.atlassian.net/browse/ABC-123",
@@ -23,11 +22,15 @@ async def test_read_issue_routes_to_jira(monkeypatch):
         comments=[IssueComment(id="1", author="alice", created=None, updated=None, body="hi")],
     )
 
-    async def fake_fetch(request: JiraTaskRequest) -> IssueDetails:
+    async def fake_read(self, request: IssueRequest) -> IssueDetails:
         captured["request"] = request
         return expected
 
-    monkeypatch.setattr("agentsflow.activities.issues.jira.fetch_jira_task", fake_fetch)
+    monkeypatch.setattr(
+        "agentsflow.activities.issues.jira.JiraIssueProvider.read",
+        fake_read,
+        raising=False,
+    )
 
     monkeypatch.setenv("JIRA_EMAIL", "dev@example.com")
     monkeypatch.setenv("JIRA_API_TOKEN", "token")
@@ -35,7 +38,7 @@ async def test_read_issue_routes_to_jira(monkeypatch):
     result = await read_issue(IssueRequest(issue_url="https://example.atlassian.net/browse/ABC-123"))
 
     assert result == expected
-    assert captured["request"].task_url == "https://example.atlassian.net/browse/ABC-123"
+    assert captured["request"].issue_url == "https://example.atlassian.net/browse/ABC-123"
 
 
 @pytest.mark.asyncio

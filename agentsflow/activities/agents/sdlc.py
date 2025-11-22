@@ -15,7 +15,7 @@ from .models import (
     ClarificationOutput,
     EvaluationOutput,
     ImplementationOutput,
-    JiraTaskPayload,
+    IssuePayload,
     ReleasePlanOutput,
     ReviewOutput,
     TestPlanOutput,
@@ -195,7 +195,7 @@ async def run_clarification_agent(prompt: str) -> ClarificationOutput:
 __all__ = [
     "DEFAULT_MODEL_NAME",
     "MODEL_ENV_VAR",
-    "JiraTaskPayload",
+    "IssuePayload",
     "ImplementationOutput",
     "EvaluationOutput",
     "TestPlanOutput",

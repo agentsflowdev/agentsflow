@@ -25,7 +25,7 @@ from agentsflow.activities.agents import (
     ClarificationOutput,
     EvaluationOutput,
     ImplementationOutput,
-    JiraTaskPayload,
+    IssuePayload,
     ReleasePlanOutput,
     ReviewOutput,
     TestPlanOutput,
@@ -70,7 +70,7 @@ class SDLCWorkflowOutput(BaseModel):
     reference: str
     coding_session_id: str | None
     coding_stops: list[AgentRun]
-    jira: JiraTaskPayload
+    issue: IssuePayload
     implementation: ImplementationOutput
     evaluation: EvaluationOutput
     test_plan: TestPlanOutput | None
@@ -91,7 +91,7 @@ class SDLCWorkflow:
         self._clarification_answers: list[str] = []
         self._clarification_assumptions: list[str] = []
         self._workflow_completed = False
-        self._task_payload: JiraTaskPayload | None = None
+        self._task_payload: IssuePayload | None = None
 
     @workflow.signal
     async def provide_clarification(
@@ -564,7 +564,7 @@ class SDLCWorkflow:
             reference=git_result.reference,
             coding_session_id=coding_session_id,
             coding_stops=agent_runs,
-            jira=task_payload,
+            issue=task_payload,
             implementation=implementation,
             evaluation=evaluation,
             test_plan=test_plan,
@@ -586,13 +586,13 @@ class SDLCWorkflow:
         return output
 
 
-def _build_task_payload(details: IssueDetails) -> JiraTaskPayload:
+def _build_task_payload(details: IssueDetails) -> IssuePayload:
     comments = [
         f"{comment.author}: {comment.body.strip()}"
         for comment in details.comments
         if comment.body and comment.body.strip()
     ]
-    return JiraTaskPayload(
+    return IssuePayload(
         issue_key=details.issue_key,
         summary=details.summary,
         description=details.description,
@@ -600,7 +600,7 @@ def _build_task_payload(details: IssueDetails) -> JiraTaskPayload:
     )
 
 
-def _render_clarification_prompt(task: JiraTaskPayload) -> str:
+def _render_clarification_prompt(task: IssuePayload) -> str:
     parts = [
         _format_task_section(task),
         (
@@ -620,7 +620,7 @@ def _render_clarification_prompt(task: JiraTaskPayload) -> str:
 def _render_coding_prompt(
     *,
     stage: Literal["implementation", "tests", "review"],
-    task: JiraTaskPayload,
+    task: IssuePayload,
     workspace_dir: str | None,
     feedback: Sequence[str],
 ) -> str:
@@ -686,12 +686,12 @@ def _history_transcripts(
 def _render_evaluation_prompt(
     *,
     stage: Literal["implementation", "tests"],
-    task: JiraTaskPayload,
+    task: IssuePayload,
     transcript: str,
     history: Sequence[str] | None = None,
 ) -> str:
     focus = (
-        "Decide whether the Jira task appears complete based on the transcript narrative. Assume the coding agent's "
+        "Decide whether the issue appears complete based on the transcript narrative. Assume the coding agent's "
         "statements are accurate unless they acknowledge missing work or failures."
         if stage == "implementation"
         else "Decide whether adequate automated tests now exist according to the transcript. Only treat the tests as "
@@ -716,7 +716,7 @@ def _render_evaluation_prompt(
     return "\n\n".join(parts)
 
 
-def _render_review_evaluation_prompt(task: JiraTaskPayload, transcript: str) -> str:
+def _render_review_evaluation_prompt(task: IssuePayload, transcript: str) -> str:
     parts = [
         _format_task_section(task),
         "Coding agent review transcript:",
@@ -733,7 +733,7 @@ def _render_review_evaluation_prompt(task: JiraTaskPayload, transcript: str) -> 
     return "\n\n".join(parts)
 
 
-def _render_implementation_summary_prompt(task: JiraTaskPayload, runs: Sequence[AgentRun]) -> str:
+def _render_implementation_summary_prompt(task: IssuePayload, runs: Sequence[AgentRun]) -> str:
     relevant = [run for run in runs if run.stage in {"implementation", "tests"}]
     transcript = "\n\n".join(f"[{run.stage}] {run.message.strip()}" for run in relevant if run.message)
     parts = [
@@ -746,7 +746,7 @@ def _render_implementation_summary_prompt(task: JiraTaskPayload, runs: Sequence[
     return "\n\n".join(parts)
 
 
-def _render_test_summary_prompt(task: JiraTaskPayload, runs: Sequence[AgentRun]) -> str:
+def _render_test_summary_prompt(task: IssuePayload, runs: Sequence[AgentRun]) -> str:
     transcript = "\n\n".join(
         f"[{run.stage}] {run.message.strip()}" for run in runs if run.stage == "tests" and run.message
     )
@@ -760,7 +760,7 @@ def _render_test_summary_prompt(task: JiraTaskPayload, runs: Sequence[AgentRun])
 
 
 def _render_release_prompt(
-    task: JiraTaskPayload,
+    task: IssuePayload,
     implementation: ImplementationOutput,
     evaluation: EvaluationOutput,
     review: ReviewOutput,
@@ -803,7 +803,7 @@ def _build_review_feedback(review: ReviewOutput) -> list[str]:
     return feedback
 
 
-def _format_task_section(task: JiraTaskPayload) -> str:
+def _format_task_section(task: IssuePayload) -> str:
     lines = [
         f"Issue: {task.issue_key}",
         f"Summary: {task.summary}",
