@@ -42,6 +42,38 @@ async def test_read_issue_routes_to_jira(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_read_issue_supports_custom_jira_host(monkeypatch):
+    captured: dict[str, IssueRequest] = {}
+    expected = IssueDetails(
+        issue_key="ABC-123",
+        issue_url="https://issues.company.com/browse/ABC-123",
+        summary="Summary",
+        description="Body",
+        status="To Do",
+        comments=[IssueComment(id="1", author="alice", created=None, updated=None, body="hi")],
+    )
+
+    async def fake_read(self, request: IssueRequest) -> IssueDetails:
+        captured["request"] = request
+        return expected
+
+    monkeypatch.setattr(
+        "agentsflow.activities.issues.jira.JiraIssueProvider.read",
+        fake_read,
+        raising=False,
+    )
+
+    monkeypatch.setenv("JIRA_EMAIL", "dev@example.com")
+    monkeypatch.setenv("JIRA_API_TOKEN", "token")
+    monkeypatch.setenv("JIRA_HOST_ALLOWLIST", "issues.company.com")
+
+    result = await read_issue(IssueRequest(issue_url="https://issues.company.com/browse/ABC-123"))
+
+    assert result == expected
+    assert captured["request"].issue_url == "https://issues.company.com/browse/ABC-123"
+
+
+@pytest.mark.asyncio
 async def test_read_issue_skips_unconfigured_providers(monkeypatch):
     monkeypatch.delenv("JIRA_EMAIL", raising=False)
     monkeypatch.delenv("JIRA_API_TOKEN", raising=False)

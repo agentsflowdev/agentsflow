@@ -69,6 +69,9 @@ package. Consult the docstrings in `agentsflow/activities/*.py` for parameter
 details and payload structures. Issue providers read their credentials directly
 from the worker environment: export `JIRA_EMAIL`, `JIRA_API_TOKEN`, and
 `GITHUB_TOKEN` (plus optional `JIRA_TIMEOUT_SECONDS` / `GITHUB_TIMEOUT_SECONDS`)
+Optional Jira overrides:
+
+- `JIRA_HOST_ALLOWLIST` – comma-separated hostnames (e.g. `issues.company.com,bugs.example.org`) treated as Jira even if they lack `atlassian.net`/`jira` in the domain.
 before starting the worker so every activity invocation can authenticate.
 
 SDLC Workflow

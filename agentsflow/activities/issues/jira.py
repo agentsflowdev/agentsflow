@@ -20,6 +20,7 @@ from .reader import IssueProvider, IssueRequest, register_issue_provider
 JIRA_EMAIL_ENV = "JIRA_EMAIL"
 JIRA_API_TOKEN_ENV = "JIRA_API_TOKEN"
 JIRA_TIMEOUT_ENV = "JIRA_TIMEOUT_SECONDS"
+JIRA_HOST_ALLOWLIST_ENV = "JIRA_HOST_ALLOWLIST"
 
 
 ISSUE_KEY_RE = re.compile(r"([A-Z][A-Z0-9_]+-\d+)", re.IGNORECASE)
@@ -43,6 +44,12 @@ STOP_SEGMENTS = {
 
 def _jira_credentials_available() -> bool:
     return bool(os.environ.get(JIRA_EMAIL_ENV) and os.environ.get(JIRA_API_TOKEN_ENV))
+
+
+def _host_allowlist() -> set[str]:
+    raw = os.environ.get(JIRA_HOST_ALLOWLIST_ENV, "")
+    hosts = {value.strip().lower() for value in raw.split(",") if value.strip()}
+    return hosts
 
 
 def _require_jira_credentials() -> tuple[str, str]:
@@ -387,7 +394,10 @@ class JiraIssueProvider(IssueProvider):
 
     def supports(self, issue_url: str) -> bool:
         host = urlparse(issue_url).netloc.lower()
-        return "atlassian.net" in host or "jira" in host
+        if "atlassian.net" in host or "jira" in host:
+            return True
+        allowlist = _host_allowlist()
+        return any(host == allowed or host.endswith(f".{allowed}") for allowed in allowlist)
 
     def is_configured(self) -> bool:
         return _jira_credentials_available()
