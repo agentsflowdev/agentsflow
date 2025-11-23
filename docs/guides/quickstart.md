@@ -61,16 +61,14 @@ Regardless of which option you choose, you can track workflow execution, history
 
 ## 3) Using AgentsFlow
 
-Once connected, you can use natural language to interact with the process workflow.
+Once connected, you can use natural language to interact with the process workflow. A few concrete prompts:
 
-**Example Prompts:**
+- "Call `start_agentsflow_process` on this repo with issue https://jira.example.com/browse/TEAM-123."
+- "Kick off `start_agentsflow_process` with task text 'Fix 500 error when cookie is missing' for the current repo."
+- "The workflow paused; send these answers via `provide_agentsflow_clarification` and then `await_agentsflow_result`."
+- "Check the latest status for workflow `process-1a2b3c` using `await_agentsflow_result`."
 
-- "Start the process workflow for the current repository."
-- "Create a feature branch for issue JIRA-123."
-- "Kick off the workflow for this task: Fix 500 error when cookie is missing."
-- "Check the status of workflow `process-1a2b3c`."
-
-You can supply either an issue URL or a free-text task when calling `start_process_workflow`, but not both.
+You can supply either an issue URL or a free-text task when calling `start_agentsflow_process`, but not both.
 
 ## Manual Setup (Alternative)
 
