@@ -13,6 +13,10 @@ stdout_console = Console(file=sys.stdout)
 stderr_console = Console(file=sys.stderr)
 ACTIVE_CONSOLE: Console = stdout_console
 
+# Resolve the absolute path to the packaged MCP server so uv/fastmcp can find it
+# even when the launcher is invoked outside the repository root (e.g., via `uvx`).
+MCP_SERVER_PATH = Path(__file__).resolve().parent / "mcp_server.py"
+
 # Global list to keep track of running processes for cleanup
 PROCESSES: list[asyncio.subprocess.Process] = []
 SUPPORTED_TRANSPORTS = ("stdio", "http", "sse", "streamable-http")
@@ -187,11 +191,11 @@ async def run_stack(transport: str) -> None:
                 start_service_passthrough(
                     "MCP",
                     [
-                        "uv",
+                        sys.executable,
+                        "-m",
+                        "fastmcp.cli",
                         "run",
-                        "fastmcp",
-                        "run",
-                        "agentsflow/mcp_server.py",
+                        str(MCP_SERVER_PATH),
                         "--transport",
                         transport,
                     ],
@@ -205,11 +209,11 @@ async def run_stack(transport: str) -> None:
                 start_service(
                     "MCP",
                     [
-                        "uv",
+                        sys.executable,
+                        "-m",
+                        "fastmcp.cli",
                         "run",
-                        "fastmcp",
-                        "run",
-                        "agentsflow/mcp_server.py",
+                        str(MCP_SERVER_PATH),
                         "--transport",
                         transport,
                     ],
