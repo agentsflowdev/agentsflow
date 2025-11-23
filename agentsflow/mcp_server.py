@@ -22,9 +22,9 @@ mcp = FastMCP(
     "AgentsFlow",
     instructions=(
         "This MCP server exposes the automation workflow. Start it with "
-        "start_process_workflow (issue_url or task_text + repository_path) to receive the workflow_id/run_id, then "
-        "call await_process_workflow_result with the workflow_id when you're ready to fetch the workflow output. "
-        "If a run pauses for clarifications, answer them via provide_process_clarification before waiting again. "
+        "start_agentsflow_process (issue_url or task_text + repository_path) to receive the workflow_id/run_id, then "
+        "call await_agentsflow_result with the workflow_id when you're ready to fetch the workflow output. "
+        "If a run pauses for clarifications, answer them via provide_agentsflow_clarification before waiting again. "
         "The repository_path argument must be the absolute filesystem path to the repo root "
         "(e.g., /Users/acme/src/app). "
         "Authentication, Temporal connection details, and overrides are read from environment variables or .env."
@@ -91,7 +91,7 @@ async def _start_workflow_tool_impl(
     }
 
     if remind_about_result:
-        await ctx.info("Workflow started. Call await_process_workflow_result with the workflow_id to fetch the output.")
+        await ctx.info("Workflow started. Call await_agentsflow_result with the workflow_id to fetch the output.")
 
     return payload
 
@@ -117,7 +117,7 @@ async def _await_workflow_tool_impl(
 
 
 @mcp.tool
-async def provide_process_clarification(
+async def provide_agentsflow_clarification(
     workflow_id: str,
     answers: list[str],
     assumptions: list[str] | None = None,
@@ -135,7 +135,7 @@ async def provide_process_clarification(
 
 
 @mcp.tool
-async def start_process_workflow(
+async def start_agentsflow_process(
     repository_path: str,
     issue_url: str | None = None,
     task_text: str | None = None,
@@ -157,7 +157,7 @@ async def start_process_workflow(
 
 
 @mcp.tool
-async def await_process_workflow_result(
+async def await_agentsflow_result(
     workflow_id: str,
     *,
     ctx: Context,
