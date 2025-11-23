@@ -17,6 +17,20 @@ ACTIVE_CONSOLE: Console = stdout_console
 # even when the launcher is invoked outside the repository root (e.g., via `uvx`).
 MCP_SERVER_PATH = Path(__file__).resolve().parent / "mcp_server.py"
 
+
+def build_mcp_command(transport: str) -> list[str]:
+    """Return the command to launch FastMCP without triggering runpy warnings."""
+    return [
+        sys.executable,
+        "-c",
+        "from fastmcp.cli import app; app()",
+        "run",
+        str(MCP_SERVER_PATH),
+        "--transport",
+        transport,
+    ]
+
+
 # Global list to keep track of running processes for cleanup
 PROCESSES: list[asyncio.subprocess.Process] = []
 SUPPORTED_TRANSPORTS = ("stdio", "http", "sse", "streamable-http")
@@ -190,15 +204,7 @@ async def run_stack(transport: str) -> None:
             asyncio.create_task(
                 start_service_passthrough(
                     "MCP",
-                    [
-                        sys.executable,
-                        "-m",
-                        "fastmcp.cli.cli",
-                        "run",
-                        str(MCP_SERVER_PATH),
-                        "--transport",
-                        transport,
-                    ],
+                    build_mcp_command(transport),
                     console=stderr_console,
                 )
             )
@@ -208,15 +214,7 @@ async def run_stack(transport: str) -> None:
             asyncio.create_task(
                 start_service(
                     "MCP",
-                    [
-                        sys.executable,
-                        "-m",
-                        "fastmcp.cli.cli",
-                        "run",
-                        str(MCP_SERVER_PATH),
-                        "--transport",
-                        transport,
-                    ],
+                    build_mcp_command(transport),
                     "magenta",
                 )
             )
