@@ -193,7 +193,7 @@ async def run_stack(transport: str) -> None:
                     [
                         sys.executable,
                         "-m",
-                        "fastmcp.cli",
+                        "fastmcp.cli.cli",
                         "run",
                         str(MCP_SERVER_PATH),
                         "--transport",
@@ -211,7 +211,7 @@ async def run_stack(transport: str) -> None:
                     [
                         sys.executable,
                         "-m",
-                        "fastmcp.cli",
+                        "fastmcp.cli.cli",
                         "run",
                         str(MCP_SERVER_PATH),
                         "--transport",
