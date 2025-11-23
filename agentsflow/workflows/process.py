@@ -1,4 +1,4 @@
-"""Temporal workflow orchestrating the SDLC automation pipeline."""
+"""Temporal workflow orchestrating the development process automation pipeline."""
 
 from __future__ import annotations
 
@@ -43,8 +43,8 @@ class AgentRun(BaseModel):
     stop_reason: str | None = None
 
 
-class SDLCWorkflowInput(BaseModel):
-    """Parameters required to kick off the SDLC workflow."""
+class ProcessWorkflowInput(BaseModel):
+    """Parameters required to kick off the process workflow."""
 
     repository: str = Field(..., description="Local path or remote URL to the source repository.")
     reference: str | None = Field(default=None, description="Optional git reference to base the worktree on.")
@@ -63,8 +63,8 @@ class SDLCWorkflowInput(BaseModel):
     )
 
 
-class SDLCWorkflowOutput(BaseModel):
-    """Aggregated result of the SDLC workflow."""
+class ProcessWorkflowOutput(BaseModel):
+    """Aggregated result of the process workflow."""
 
     repository_path: str
     reference: str
@@ -81,9 +81,9 @@ class SDLCWorkflowOutput(BaseModel):
     commit_pushed: bool
 
 
-@workflow.defn(name="sdlc_workflow", sandboxed=False)
-class SDLCWorkflow:
-    """Temporal workflow mirroring the Agentsflow SDLC pipeline."""
+@workflow.defn(name="process_workflow", sandboxed=False)
+class ProcessWorkflow:
+    """Temporal workflow mirroring the automation pipeline."""
 
     def __init__(self) -> None:
         self._clarification_state: ClarificationOutput | None = None
@@ -118,10 +118,10 @@ class SDLCWorkflow:
         return {"status": "running"}
 
     @workflow.run
-    async def run(self, params: SDLCWorkflowInput) -> SDLCWorkflowOutput:  # noqa: D401
+    async def run(self, params: ProcessWorkflowInput) -> ProcessWorkflowOutput:  # noqa: D401
         logger = workflow.logger
         logger.info(
-            "SDLC workflow started",
+            "Process workflow started",
             extra={
                 "repository": params.repository,
                 "reference": params.reference,
@@ -559,7 +559,7 @@ class SDLCWorkflow:
                     retry_policy=RetryPolicy(maximum_attempts=3),
                 )
 
-        output = SDLCWorkflowOutput(
+        output = ProcessWorkflowOutput(
             repository_path=git_result.repository_path,
             reference=git_result.reference,
             coding_session_id=coding_session_id,
@@ -575,7 +575,7 @@ class SDLCWorkflow:
             commit_pushed=finalize_result.pushed if finalize_result else False,
         )
         logger.info(
-            "SDLC workflow completed",
+            "Process workflow completed",
             extra={
                 "branch": output.committed_branch,
                 "commit_sha": output.committed_sha,
@@ -854,8 +854,8 @@ def _format_list_section(title: str, items: list[str]) -> str:
 
 
 __all__ = [
-    "SDLCWorkflow",
-    "SDLCWorkflowInput",
-    "SDLCWorkflowOutput",
+    "ProcessWorkflow",
+    "ProcessWorkflowInput",
+    "ProcessWorkflowOutput",
     "AgentRun",
 ]

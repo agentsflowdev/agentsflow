@@ -1,6 +1,6 @@
-# SDLC Workflow
+# Process Workflow
 
-The `sdlc_workflow` definition orchestrates the AgentsFlow automation pipeline around Temporal, Git, issue providers, and ACP coding agents.
+The `process_workflow` definition orchestrates the automation pipeline around Temporal, Git, issue providers, and ACP coding agents.
 
 ## High-level flow
 ```mermaid
@@ -33,9 +33,9 @@ graph TD
 
 ## Inputs and outputs
 - **Inputs:** repository path/URL, optional reference, issue URL, optional branch override, and coding agent provider (`claude`/`gemini`/`codex`).
-- **Outputs (`SDLCWorkflowOutput`):** repository path, reference, ACP session IDs, coding transcripts, issue payload, implementation/test/review artifacts, release plan, committed branch and SHA, and whether a push occurred.
+- **Outputs (`ProcessWorkflowOutput`):** repository path, reference, ACP session IDs, coding transcripts, issue payload, implementation/test/review artifacts, release plan, committed branch and SHA, and whether a push occurred.
 
 ## Operational notes
-- Workflow IDs default to `sdlc-<8 hex>`. Poll progress via the `clarification_status` query or the Temporal Web UI.
+- Workflow IDs default to `process-<8 hex>`. Poll progress via the `clarification_status` query or the Temporal Web UI.
 - Activity retries are constrained; repeated failures (missing credentials, git push issues) surface as non-retryable `ApplicationError`s.
 - Temporary worktrees are removed after finalization. If a run crashes mid-flight, clean up any `temporal-worktree-*` directories left behind.

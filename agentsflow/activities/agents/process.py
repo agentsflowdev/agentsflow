@@ -1,4 +1,4 @@
-"""Activities that invoke Pydantic AI agents for the SDLC workflow."""
+"""Activities that invoke Pydantic AI agents for the process workflow."""
 
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ from .models import (
     TestPlanOutput,
 )
 
-MODEL_ENV_VAR = "SDLC_AGENT_MODEL"
+MODEL_ENV_VAR = "PROCESS_AGENT_MODEL"
 DEFAULT_MODEL_NAME = "gpt-4.1-mini"
 
 
@@ -66,7 +66,7 @@ def _build_agent(*, name: str, instructions: str, output_type: type) -> Agent[No
 @cache
 def _implementation_agent() -> Agent[None, ImplementationOutput]:
     return _build_agent(
-        name="sdlc-implementation-verification",
+        name="process-implementation-verification",
         instructions=(
             "You are reviewing the transcript produced by an autonomous coding agent (Claude Code ACP). "
             "Use the issue context and the coding agent's latest response to summarise what work was reported. "
@@ -84,7 +84,7 @@ def _implementation_agent() -> Agent[None, ImplementationOutput]:
 @cache
 def _evaluation_agent() -> Agent[None, EvaluationOutput]:
     return _build_agent(
-        name="sdlc-evaluation",
+        name="process-evaluation",
         instructions=(
             "You evaluate coding transcripts for tracked issues. Review the issue details alongside the transcript "
             "and decide whether the implementation sounds complete and whether automated tests were carried out. "
@@ -104,7 +104,7 @@ def _evaluation_agent() -> Agent[None, EvaluationOutput]:
 @cache
 def _tests_agent() -> Agent[None, TestPlanOutput]:
     return _build_agent(
-        name="sdlc-tests",
+        name="process-tests",
         instructions=(
             "You design automated test coverage for the tracked issue. Focus on the uncovered gaps highlighted by "
             "the evaluation. "
@@ -118,7 +118,7 @@ def _tests_agent() -> Agent[None, TestPlanOutput]:
 @cache
 def _review_agent() -> Agent[None, ReviewOutput]:
     return _build_agent(
-        name="sdlc-review",
+        name="process-review",
         instructions=(
             "Perform a critical, evidence-based code review of the proposed implementation and automated tests. "
             "Document every finding with a severity. Blocking problems—missing or ambiguous error handling, "
@@ -147,7 +147,7 @@ def _review_agent() -> Agent[None, ReviewOutput]:
 @cache
 def _release_agent() -> Agent[None, ReleasePlanOutput]:
     return _build_agent(
-        name="sdlc-release",
+        name="process-release",
         instructions=(
             "Draft the source control release plan for the task. Provide an actionable branch name, commit message, "
             "and pull request summary. "
@@ -161,7 +161,7 @@ def _release_agent() -> Agent[None, ReleasePlanOutput]:
 @cache
 def _clarification_agent() -> Agent[None, ClarificationOutput]:
     return _build_agent(
-        name="sdlc-clarification",
+        name="process-clarification",
         instructions=(
             "You audit the issue description and recent comments before any coding begins. Identify whether the"
             " requirements are fully specified. Only set clarification_required to True when missing inputs,"

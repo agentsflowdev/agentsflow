@@ -17,7 +17,7 @@ from agentsflow.logging_utils import (
     DEFAULT_LOG_LEVEL,
     configure_logging,
 )
-from agentsflow.workflows import SDLCWorkflow
+from agentsflow.workflows import ProcessWorkflow
 
 
 class WorkerSettings(BaseSettings):
@@ -25,7 +25,7 @@ class WorkerSettings(BaseSettings):
 
     address: str = Field(default="127.0.0.1:7233", alias="TEMPORAL_ADDRESS")
     namespace: str = Field(default="default", alias="TEMPORAL_NAMESPACE")
-    task_queue: str = Field(default="agentsflow-sdlc", alias="SDLC_TASK_QUEUE")
+    task_queue: str = Field(default="process-workflow", alias="PROCESS_TASK_QUEUE")
     auto_approve: bool = Field(default=True, alias="ACP_AUTO_APPROVE")
     log_level: str = Field(default=DEFAULT_LOG_LEVEL, alias="AGENTSFLOW_LOG_LEVEL")
 
@@ -53,7 +53,7 @@ def _parse_args(argv: list[str], defaults: WorkerSettings) -> argparse.Namespace
         "--task-queue",
         dest="task_queue",
         default=defaults.task_queue,
-        help="Task queue the worker will poll (env: SDLC_TASK_QUEUE).",
+        help="Task queue the worker will poll (env: PROCESS_TASK_QUEUE).",
     )
     parser.add_argument(
         "--auto-approve",
@@ -86,7 +86,7 @@ async def _run_worker(args: argparse.Namespace) -> None:
     worker = Worker(
         client,
         task_queue=args.task_queue,
-        workflows=[SDLCWorkflow],
+        workflows=[ProcessWorkflow],
         activities=activities.activities(),
     )
 

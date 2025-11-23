@@ -1,6 +1,6 @@
 # Quickstart
 
-Spin up the SDLC workflow locally and run it end-to-end. The recommended way to run AgentsFlow is as an MCP server using `uvx`.
+Spin up the process workflow locally and run it end-to-end. The recommended way to run AgentsFlow is as an MCP server using `uvx`.
 
 ## Prerequisites
 - **uv**: Install via `curl -LsSf https://astral.sh/uv/install.sh | sh`
@@ -59,12 +59,12 @@ Regardless of which option you choose, you can track workflow execution, history
 
 ## 3) Using AgentsFlow
 
-Once connected, you can use natural language to interact with the SDLC workflow.
+Once connected, you can use natural language to interact with the process workflow.
 
 **Example Prompts:**
-- "Start the SDLC workflow for the current repository."
+- "Start the process workflow for the current repository."
 - "Create a feature branch for issue JIRA-123."
-- "Check the status of workflow `sdlc-1a2b3c`."
+- "Check the status of workflow `process-1a2b3c`."
 
 ## Manual Setup (Alternative)
 

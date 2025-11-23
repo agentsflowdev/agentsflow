@@ -1,4 +1,4 @@
-"""Command-line utility to kick off the SDLC Temporal workflow."""
+"""Command-line utility to kick off the process Temporal workflow."""
 
 from __future__ import annotations
 
@@ -12,7 +12,6 @@ import uuid
 from typing import Any
 
 from pydantic import Field
-from pydantic_ai.durable_exec.temporal import PydanticAIPlugin
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from temporalio.client import Client, WorkflowHandle
 from temporalio.contrib.pydantic import pydantic_data_converter
@@ -21,7 +20,7 @@ from agentsflow.logging_utils import (
     DEFAULT_LOG_LEVEL,
     configure_logging,
 )
-from agentsflow.workflows import SDLCWorkflow, SDLCWorkflowInput, SDLCWorkflowOutput
+from agentsflow.workflows import ProcessWorkflow, ProcessWorkflowInput, ProcessWorkflowOutput
 
 STATUS_POLL_INTERVAL_SECONDS = 2
 
@@ -40,11 +39,11 @@ class CLISettings(BaseSettings):
     issue_url: str | None = None
     address: str = Field(default="127.0.0.1:7233", alias="TEMPORAL_ADDRESS")
     namespace: str = Field(default="default", alias="TEMPORAL_NAMESPACE")
-    task_queue: str = Field(default="agentsflow-sdlc", alias="SDLC_TASK_QUEUE")
-    coding_agent_provider: str = Field(default="claude", alias="SDLC_CODING_AGENT_PROVIDER")
-    model: str | None = Field(default=None, alias="SDLC_AGENT_MODEL")
+    task_queue: str = Field(default="process-workflow", alias="PROCESS_TASK_QUEUE")
+    coding_agent_provider: str = Field(default="claude", alias="PROCESS_CODING_AGENT_PROVIDER")
+    model: str | None = Field(default=None, alias="PROCESS_AGENT_MODEL")
     branch_name: str | None = None
-    json_output: bool = Field(default=False, alias="SDLC_JSON_OUTPUT")
+    json_output: bool = Field(default=False, alias="PROCESS_JSON_OUTPUT")
     log_level: str = Field(default=DEFAULT_LOG_LEVEL, alias="AGENTSFLOW_LOG_LEVEL")
 
     model_config = SettingsConfigDict(
@@ -56,7 +55,7 @@ class CLISettings(BaseSettings):
 
 
 def _parse_args(argv: list[str], defaults: CLISettings) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Run the AgentsFlow SDLC workflow.")
+    parser = argparse.ArgumentParser(description="Run the process workflow.")
 
     parser.add_argument(
         "--repository",
@@ -90,18 +89,18 @@ def _parse_args(argv: list[str], defaults: CLISettings) -> argparse.Namespace:
         "--task-queue",
         dest="task_queue",
         default=defaults.task_queue,
-        help="Task queue that the SDLC worker listens on (env: SDLC_TASK_QUEUE).",
+        help="Task queue that the worker listens on (env: PROCESS_TASK_QUEUE).",
     )
     parser.add_argument(
         "--coding-agent-provider",
         default=defaults.coding_agent_provider,
         choices=["claude", "gemini", "codex"],
-        help="Coding agent provider to use (env: SDLC_CODING_AGENT_PROVIDER).",
+        help="Coding agent provider to use (env: PROCESS_CODING_AGENT_PROVIDER).",
     )
     parser.add_argument(
         "--model",
         default=defaults.model,
-        help="Override chat model used by the SDLC agents (env: SDLC_AGENT_MODEL).",
+        help="Override chat model used by the process agents (env: PROCESS_AGENT_MODEL).",
     )
     parser.add_argument(
         "--branch",
@@ -114,19 +113,19 @@ def _parse_args(argv: list[str], defaults: CLISettings) -> argparse.Namespace:
         "--json",
         dest="json",
         action="store_true",
-        help="Print the workflow result as pretty-printed JSON (env: SDLC_JSON_OUTPUT).",
+        help="Print the workflow result as pretty-printed JSON (env: PROCESS_JSON_OUTPUT).",
     )
     parser.add_argument(
         "--no-json",
         dest="json",
         action="store_false",
-        help="Disable JSON output even if SDLC_JSON_OUTPUT is set.",
+        help="Disable JSON output even if PROCESS_JSON_OUTPUT is set.",
     )
     return parser.parse_args(argv)
 
 
 def _generate_workflow_id() -> str:
-    return f"sdlc-{uuid.uuid4().hex[:8]}"
+    return f"process-{uuid.uuid4().hex[:8]}"
 
 
 async def _create_temporal_client(address: str, namespace: str) -> Client:
@@ -136,21 +135,20 @@ async def _create_temporal_client(address: str, namespace: str) -> Client:
         address,
         namespace=namespace,
         data_converter=pydantic_data_converter,
-        plugins=[PydanticAIPlugin()],
     )
 
 
 async def _start_workflow_handle(
     args: argparse.Namespace,
-) -> WorkflowHandle[SDLCWorkflowOutput, Any]:
-    """Start the SDLC workflow and return the Temporal workflow handle."""
+) -> WorkflowHandle[ProcessWorkflowOutput, Any]:
+    """Start the process workflow and return the Temporal workflow handle."""
 
     client = await _create_temporal_client(args.address, args.namespace)
 
     if args.model:
-        os.environ["SDLC_AGENT_MODEL"] = args.model
+        os.environ["PROCESS_AGENT_MODEL"] = args.model
 
-    input_payload = SDLCWorkflowInput(
+    input_payload = ProcessWorkflowInput(
         repository=args.repository,
         reference=args.reference,
         issue_url=args.issue_url,
@@ -159,7 +157,7 @@ async def _start_workflow_handle(
     )
 
     return await client.start_workflow(  # type: ignore[no-any-return]
-        SDLCWorkflow.run,
+        ProcessWorkflow.run,
         input_payload,
         id=_generate_workflow_id(),
         task_queue=args.task_queue,
@@ -172,24 +170,24 @@ async def _await_workflow_result(
     workflow_id: str,
     *,
     run_id: str | None = None,
-) -> SDLCWorkflowOutput:
+) -> ProcessWorkflowOutput:
     """Await the result for an existing workflow execution."""
 
     client = await _create_temporal_client(address, namespace)
-    handle: WorkflowHandle[SDLCWorkflowOutput, Any] = client.get_workflow_handle(
+    handle: WorkflowHandle[ProcessWorkflowOutput, Any] = client.get_workflow_handle(
         workflow_id,
         run_id=run_id,
-        result_type=SDLCWorkflowOutput,
+        result_type=ProcessWorkflowOutput,
     )
     return await _wait_for_completion(handle)
 
 
-async def _run_workflow(args: argparse.Namespace) -> SDLCWorkflowOutput:
+async def _run_workflow(args: argparse.Namespace) -> ProcessWorkflowOutput:
     handle = await _start_workflow_handle(args)
     return await _wait_for_completion(handle)
 
 
-async def _wait_for_completion(handle: WorkflowHandle[SDLCWorkflowOutput, Any]) -> SDLCWorkflowOutput:
+async def _wait_for_completion(handle: WorkflowHandle[ProcessWorkflowOutput, Any]) -> ProcessWorkflowOutput:
     result_task = asyncio.create_task(handle.result())
     try:
         while True:
@@ -206,7 +204,7 @@ async def _wait_for_completion(handle: WorkflowHandle[SDLCWorkflowOutput, Any]) 
                 await result_task
 
 
-def _print_result(result: SDLCWorkflowOutput, as_json: bool) -> None:
+def _print_result(result: ProcessWorkflowOutput, as_json: bool) -> None:
     data = result.model_dump()
     if as_json:
         print(json.dumps(data, indent=2))

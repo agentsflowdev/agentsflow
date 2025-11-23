@@ -18,7 +18,7 @@ class TemporalTestSettings:
             return None
         namespace = os.getenv("TEMPORAL_TEST_NAMESPACE", "default")
         task_queue_env = os.getenv("TEMPORAL_TEST_TASK_QUEUE")
-        task_queue = task_queue_env or "test-sdlc"
+        task_queue = task_queue_env or "test-process"
         return cls(
             address=address,
             namespace=namespace,

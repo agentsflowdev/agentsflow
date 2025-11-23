@@ -1,10 +1,10 @@
-"""Workflow entry points for AgentsFlow."""
+"""Workflow entry points for the automation process."""
 
-from .sdlc import AgentRun, SDLCWorkflow, SDLCWorkflowInput, SDLCWorkflowOutput
+from .process import AgentRun, ProcessWorkflow, ProcessWorkflowInput, ProcessWorkflowOutput
 
 __all__ = [
     "AgentRun",
-    "SDLCWorkflow",
-    "SDLCWorkflowInput",
-    "SDLCWorkflowOutput",
+    "ProcessWorkflow",
+    "ProcessWorkflowInput",
+    "ProcessWorkflowOutput",
 ]

@@ -1,4 +1,4 @@
-"""Temporal activities bundled for AgentsFlow workflows."""
+"""Temporal activities bundled for the automation workflows."""
 
 from __future__ import annotations
 
@@ -55,7 +55,7 @@ async def close_acp_session(session_id: str) -> None:
 
 
 class AgentsFlowActivities:
-    """Collection of Temporal activity entry points used by the SDLC flow."""
+    """Collection of Temporal activity entry points used by the process flow."""
 
     def __init__(self, *, auto_approve: bool = True) -> None:
         self.git = GitActivities()
