@@ -64,7 +64,10 @@ Once connected, you can use natural language to interact with the process workfl
 **Example Prompts:**
 - "Start the process workflow for the current repository."
 - "Create a feature branch for issue JIRA-123."
+- "Kick off the workflow for this task: Fix 500 error when cookie is missing."
 - "Check the status of workflow `process-1a2b3c`."
+
+You can supply either an issue URL or a free-text task when calling `start_process_workflow`, but not both.
 
 ## Manual Setup (Alternative)
 

@@ -22,8 +22,8 @@ mcp = FastMCP(
     "AgentsFlow",
     instructions=(
         "This MCP server exposes the automation workflow. Start it with "
-        "start_process_workflow (issue_url + repository_path) to receive the workflow_id/run_id, then call "
-        "await_process_workflow_result with the workflow_id when you're ready to fetch the workflow output. "
+        "start_process_workflow (issue_url or task_text + repository_path) to receive the workflow_id/run_id, then "
+        "call await_process_workflow_result with the workflow_id when you're ready to fetch the workflow output. "
         "If a run pauses for clarifications, answer them via provide_process_clarification before waiting again. "
         "The repository_path argument must be the absolute filesystem path to the repo root "
         "(e.g., /Users/acme/src/app). "
@@ -36,11 +36,13 @@ def _build_workflow_args(
     *,
     defaults: CLISettings,
     repository_path: str,
-    issue_url: str,
+    issue_url: str | None,
+    task_text: str | None,
 ) -> argparse.Namespace:
     return argparse.Namespace(
         repository=repository_path,
         issue_url=issue_url,
+        task_text=task_text,
         reference=defaults.reference,
         address=defaults.address,
         namespace=defaults.namespace,
@@ -53,19 +55,24 @@ def _build_workflow_args(
 
 async def _start_workflow_tool_impl(
     *,
-    issue_url: str,
+    issue_url: str | None,
+    task_text: str | None,
     repository_path: str,
     ctx: Context,
     remind_about_result: bool,
 ) -> dict[str, Any]:
     defaults = CLISettings()
+    if bool(issue_url) == bool(task_text):
+        raise ValueError("Provide exactly one of issue_url or task_text.")
     args = _build_workflow_args(
         defaults=defaults,
         repository_path=repository_path,
         issue_url=issue_url,
+        task_text=task_text,
     )
 
-    await ctx.info(f"Submitting workflow for issue {issue_url} against repository path {repository_path}.")
+    target = f"issue {issue_url}" if issue_url else "ad-hoc task"
+    await ctx.info(f"Submitting workflow for {target} against repository path {repository_path}.")
 
     handle = await _start_workflow_handle(args)
 
@@ -77,6 +84,7 @@ async def _start_workflow_tool_impl(
         "namespace": args.namespace,
         "address": args.address,
         "issue_url": issue_url,
+        "task_text": task_text,
         "repository_path": repository_path,
         "branch_name": args.branch_name,
         "coding_agent_provider": args.coding_agent_provider,
@@ -128,8 +136,9 @@ async def provide_process_clarification(
 
 @mcp.tool
 async def start_process_workflow(
-    issue_url: str,
     repository_path: str,
+    issue_url: str | None = None,
+    task_text: str | None = None,
     *,
     ctx: Context,
 ) -> dict[str, Any]:
@@ -140,6 +149,7 @@ async def start_process_workflow(
 
     return await _start_workflow_tool_impl(
         issue_url=issue_url,
+        task_text=task_text,
         repository_path=repository_path,
         ctx=ctx,
         remind_about_result=True,

@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+import uuid
 from collections.abc import Sequence
 from datetime import timedelta
 from typing import Any, Literal
 
-from pydantic import AliasChoices, BaseModel, Field
+from pydantic import AliasChoices, BaseModel, Field, model_validator
 from temporalio import workflow
 from temporalio.common import RetryPolicy
 from temporalio.exceptions import ApplicationError
@@ -48,10 +49,17 @@ class ProcessWorkflowInput(BaseModel):
 
     repository: str = Field(..., description="Local path or remote URL to the source repository.")
     reference: str | None = Field(default=None, description="Optional git reference to base the worktree on.")
-    issue_url: str = Field(
-        ...,
+    issue_url: str | None = Field(
+        default=None,
         description="URL pointing to the issue (Jira, GitHub, etc.).",
         validation_alias=AliasChoices("issue_url", "jira_task_url"),
+    )
+    task_text: str | None = Field(
+        default=None,
+        description=(
+            "Free-form task description when no issue tracker URL is available. The first non-empty line is "
+            "treated as the summary; remaining lines form the description."
+        ),
     )
     branch_name: str | None = Field(
         default=None,
@@ -61,6 +69,14 @@ class ProcessWorkflowInput(BaseModel):
         default="claude",
         description="Which coding agent to use (Claude, Gemini, or Codex).",
     )
+
+    @model_validator(mode="after")
+    def _require_single_task_source(self) -> ProcessWorkflowInput:
+        issue_present = bool(self.issue_url)
+        text_present = bool(self.task_text)
+        if issue_present == text_present:
+            raise ValueError("Provide exactly one of issue_url or task_text.")
+        return self
 
 
 class ProcessWorkflowOutput(BaseModel):
@@ -120,12 +136,14 @@ class ProcessWorkflow:
     @workflow.run
     async def run(self, params: ProcessWorkflowInput) -> ProcessWorkflowOutput:  # noqa: D401
         logger = workflow.logger
+        source = "issue_url" if params.issue_url else "task_text"
         logger.info(
             "Process workflow started",
             extra={
                 "repository": params.repository,
                 "reference": params.reference,
                 "issue_url": params.issue_url,
+                "task_source": source,
                 "branch_name": params.branch_name,
             },
         )
@@ -145,18 +163,22 @@ class ProcessWorkflow:
             },
         )
 
-        issue_result = await workflow.execute_activity(
-            "read_issue",
-            IssueRequest(issue_url=params.issue_url),
-            start_to_close_timeout=timedelta(minutes=2),
-            retry_policy=RetryPolicy(maximum_attempts=4),
-            result_type=IssueDetails,
-        )
+        if params.issue_url:
+            issue_result = await workflow.execute_activity(
+                "read_issue",
+                IssueRequest(issue_url=params.issue_url),
+                start_to_close_timeout=timedelta(minutes=2),
+                retry_policy=RetryPolicy(maximum_attempts=4),
+                result_type=IssueDetails,
+            )
+        else:
+            issue_result = _issue_details_from_task_text(params.task_text or "")
         logger.info(
             "Issue context loaded",
             extra={
                 "issue_key": issue_result.issue_key,
                 "status": issue_result.status,
+                "source": source,
             },
         )
 
@@ -597,6 +619,28 @@ def _build_task_payload(details: IssueDetails) -> IssuePayload:
         summary=details.summary,
         description=details.description,
         comments=comments,
+    )
+
+
+def _issue_details_from_task_text(task_text: str) -> IssueDetails:
+    """Create a synthetic IssueDetails payload from ad-hoc task text."""
+
+    normalized_lines = [line.strip() for line in task_text.splitlines() if line.strip()]
+    summary = normalized_lines[0] if normalized_lines else "Ad-hoc task"
+    description = "\n".join(normalized_lines[1:]).strip()
+    if not description:
+        description = summary
+
+    issue_key = f"TASK-{uuid.uuid4().hex[:8].upper()}"
+    # Cap summary to avoid excessively long prompt headers
+    capped_summary = summary[:200]
+    return IssueDetails(
+        issue_key=issue_key,
+        issue_url="adhoc://task",
+        summary=capped_summary,
+        description=description,
+        status=None,
+        comments=[],
     )
 
 
