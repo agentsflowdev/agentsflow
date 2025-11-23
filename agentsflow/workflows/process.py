@@ -246,7 +246,7 @@ class ProcessWorkflow:
                     session_id=session_id,
                     workspace_dir=git_result.worktree_path,
                 ),
-                start_to_close_timeout=timedelta(minutes=15),
+                start_to_close_timeout=timedelta(minutes=60),
                 retry_policy=RetryPolicy(maximum_attempts=1),
                 result_type=ACPResponse,
             )
