@@ -6,7 +6,7 @@ The FastMCP bridge exposes the SDLC workflow to MCP-compatible clients using the
 ```bash
 uv run fastmcp run agentsflow/mcp_server.py
 ```
-It respects `.env` values for Temporal (`TEMPORAL_ADDRESS`, `TEMPORAL_NAMESPACE`), workflow defaults (`SDLC_*`), and credentials (`OPENAI_API_KEY`, Jira/GitHub tokens).
+It respects `.env` values for Temporal (`TEMPORAL_ADDRESS`, `TEMPORAL_NAMESPACE`), workflow defaults (`SDLC_TASK_QUEUE`, `SDLC_AGENT_MODEL`), and credentials (`OPENAI_API_KEY`, Jira/GitHub tokens).
 
 ## Tools
 - `start_sdlc_workflow(issue_url, repository_path)` – Starts the workflow asynchronously and returns `workflow_id`, `run_id`, `task_queue`, and connection metadata. `repository_path` must be an absolute path reachable by the worker host.

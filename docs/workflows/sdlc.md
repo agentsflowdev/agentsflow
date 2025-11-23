@@ -27,7 +27,7 @@ graph TD
 - **Tests loop (conditional)** – Runs when evaluation shows missing automated tests. Up to 5 attempts to have the coding agent add coverage, re-evaluating after each pass.
 - **Review loop** – ACP review session followed by `run_review_agent`; up to 5 attempts until approval is granted. Review feedback is fed back into the coding agent if changes are needed.
 - **Summaries** – Generates implementation and (when tests exist) testing summaries for traceability via `run_implementation_agent` and `run_tests_agent`.
-- **Release planning** – `run_release_agent` proposes a branch, commit message, PR title/body, and follow-up items. CLI/ENV branch overrides (`SDLC_BRANCH_NAME`) take precedence.
+- **Release planning** – `run_release_agent` proposes a branch, commit message, PR title/body, and follow-up items. CLI branch overrides take precedence.
 - **Finalize git changes** (`finalize_git_changes`, 2m timeout) – checks out the branch, stages and commits any changes, optionally pushes to the configured remote (push is off by default), and cleans up the temporary worktree.
 - **Session cleanup** – Both coding and review ACP sessions are closed even on failure paths.
 

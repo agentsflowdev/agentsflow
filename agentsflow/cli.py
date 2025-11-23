@@ -35,15 +35,15 @@ class ClarificationPending(Exception):
 class CLISettings(BaseSettings):
     """Settings source for CLI defaults populated from environment or .env files."""
 
-    repository: str | None = Field(default=None, alias="SDLC_REPOSITORY")
-    reference: str | None = Field(default=None, alias="SDLC_REFERENCE")
-    issue_url: str | None = Field(default=None, alias="SDLC_ISSUE_URL")
+    repository: str | None = None
+    reference: str | None = None
+    issue_url: str | None = None
     address: str = Field(default="127.0.0.1:7233", alias="TEMPORAL_ADDRESS")
     namespace: str = Field(default="default", alias="TEMPORAL_NAMESPACE")
     task_queue: str = Field(default="agentsflow-sdlc", alias="SDLC_TASK_QUEUE")
     coding_agent_provider: str = Field(default="claude", alias="SDLC_CODING_AGENT_PROVIDER")
     model: str | None = Field(default=None, alias="SDLC_AGENT_MODEL")
-    branch_name: str | None = Field(default=None, alias="SDLC_BRANCH_NAME")
+    branch_name: str | None = None
     json_output: bool = Field(default=False, alias="SDLC_JSON_OUTPUT")
     log_level: str = Field(default=DEFAULT_LOG_LEVEL, alias="AGENTSFLOW_LOG_LEVEL")
 
@@ -62,19 +62,19 @@ def _parse_args(argv: list[str], defaults: CLISettings) -> argparse.Namespace:
         "--repository",
         default=defaults.repository,
         required=defaults.repository is None,
-        help="Local path or remote URL to the git repository (env: SDLC_REPOSITORY).",
+        help="Local path or remote URL to the git repository.",
     )
     parser.add_argument(
         "--issue-url",
         dest="issue_url",
         default=defaults.issue_url,
         required=defaults.issue_url is None,
-        help="URL of the issue to process (env: SDLC_ISSUE_URL).",
+        help="URL of the issue to process.",
     )
     parser.add_argument(
         "--reference",
         default=defaults.reference,
-        help="Optional git reference (branch, tag, or commit) (env: SDLC_REFERENCE).",
+        help="Optional git reference (branch, tag, or commit).",
     )
     parser.add_argument(
         "--address",
@@ -107,7 +107,7 @@ def _parse_args(argv: list[str], defaults: CLISettings) -> argparse.Namespace:
         "--branch",
         dest="branch_name",
         default=defaults.branch_name,
-        help="Optional branch name to commit workflow changes into (env: SDLC_BRANCH_NAME).",
+        help="Optional branch name to commit workflow changes into.",
     )
     parser.set_defaults(json=defaults.json_output)
     parser.add_argument(

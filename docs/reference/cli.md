@@ -1,9 +1,9 @@
 # CLI & Worker Reference
 
 ## CLI (`python -m agentsflow.cli`)
-- Required inputs: `--repository` (path or git URL) and `--issue-url` unless provided via `SDLC_REPOSITORY` / `SDLC_ISSUE_URL`.
+- Required inputs: `--repository` (path or git URL) and `--issue-url`.
 - Connection flags: `--address` (`TEMPORAL_ADDRESS`), `--namespace` (`TEMPORAL_NAMESPACE`), `--task-queue` (`SDLC_TASK_QUEUE`).
-- Workflow controls: `--reference`, `--coding-agent-provider {claude,gemini,codex}`, `--model` (`SDLC_AGENT_MODEL`), `--branch` (`SDLC_BRANCH_NAME`).
+- Workflow controls: `--reference`, `--coding-agent-provider {claude,gemini,codex}`, `--model` (`SDLC_AGENT_MODEL`), `--branch`.
 - Output: `--json` / `--no-json` (defaults to `SDLC_JSON_OUTPUT`); prints the `SDLCWorkflowOutput` payload on success.
 - Exit codes: `0` success, `2` clarification required (payload printed), `1` error, `130` interrupted.
 - Workflow IDs are generated automatically as `sdlc-<8 hex>` unless you wrap the CLI yourself.
