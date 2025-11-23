@@ -1,6 +1,6 @@
 [project]
 name = "agentsflow"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -52,5 +52,9 @@ strict = true
 ignore_missing_imports = true
 exclude = ["tests/"]
 
-[tool.setuptools.packages.find]
-include = ["agentsflow*"]
+[build-system]
+requires = ["hatchling", "uv-dynamic-versioning"]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+source = "uv-dynamic-versioning"
