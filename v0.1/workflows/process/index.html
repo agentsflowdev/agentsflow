@@ -10,7 +10,7 @@
       
       
       
-        <link rel="canonical" href="https://docs.agentsflow.dev/v0.1/workflows/sdlc/">
+        <link rel="canonical" href="https://docs.agentsflow.dev/v0.1/workflows/process/">
       
       
         <link rel="prev" href="../../guides/providers/">
@@ -27,7 +27,7 @@
     
     
       
-        <title>SDLC Workflow - AgentsFlow</title>
+        <title>Process Workflow - AgentsFlow</title>
       
     
     
@@ -70,7 +70,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#sdlc-workflow" class="md-skip">
+        <a href="#process-workflow" class="md-skip">
           Skip to content
         </a>
       
@@ -108,7 +108,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              SDLC Workflow
+              Process Workflow
             
           </span>
         </div>
@@ -670,7 +670,7 @@
   <span class="md-ellipsis">
     
   
-    SDLC Workflow
+    Process Workflow
   
 
     
@@ -688,7 +688,7 @@
   <span class="md-ellipsis">
     
   
-    SDLC Workflow
+    Process Workflow
   
 
     
@@ -1350,8 +1350,8 @@
   
 
 
-<h1 id="sdlc-workflow">SDLC Workflow<a class="headerlink" href="#sdlc-workflow" title="Permanent link">&para;</a></h1>
-<p>The <code>sdlc_workflow</code> definition orchestrates the AgentsFlow automation pipeline around Temporal, Git, issue providers, and ACP coding agents.</p>
+<h1 id="process-workflow">Process Workflow<a class="headerlink" href="#process-workflow" title="Permanent link">&para;</a></h1>
+<p>The <code>process_workflow</code> definition orchestrates the automation pipeline around Temporal, Git, issue providers, and ACP coding agents.</p>
 <h2 id="high-level-flow">High-level flow<a class="headerlink" href="#high-level-flow" title="Permanent link">&para;</a></h2>
 <pre class="mermaid"><code>graph TD
     A[Start workflow] --&gt; B[Create git worktree]
@@ -1382,11 +1382,11 @@
 <h2 id="inputs-and-outputs">Inputs and outputs<a class="headerlink" href="#inputs-and-outputs" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong>Inputs:</strong> repository path/URL, optional reference, issue URL, optional branch override, and coding agent provider (<code>claude</code>/<code>gemini</code>/<code>codex</code>).</li>
-<li><strong>Outputs (<code>SDLCWorkflowOutput</code>):</strong> repository path, reference, ACP session IDs, coding transcripts, issue payload, implementation/test/review artifacts, release plan, committed branch and SHA, and whether a push occurred.</li>
+<li><strong>Outputs (<code>ProcessWorkflowOutput</code>):</strong> repository path, reference, ACP session IDs, coding transcripts, issue payload, implementation/test/review artifacts, release plan, committed branch and SHA, and whether a push occurred.</li>
 </ul>
 <h2 id="operational-notes">Operational notes<a class="headerlink" href="#operational-notes" title="Permanent link">&para;</a></h2>
 <ul>
-<li>Workflow IDs default to <code>sdlc-&lt;8 hex&gt;</code>. Poll progress via the <code>clarification_status</code> query or the Temporal Web UI.</li>
+<li>Workflow IDs default to <code>process-&lt;8 hex&gt;</code>. Poll progress via the <code>clarification_status</code> query or the Temporal Web UI.</li>
 <li>Activity retries are constrained; repeated failures (missing credentials, git push issues) surface as non-retryable <code>ApplicationError</code>s.</li>
 <li>Temporary worktrees are removed after finalization. If a run crashes mid-flight, clean up any <code>temporal-worktree-*</code> directories left behind.</li>
 </ul>

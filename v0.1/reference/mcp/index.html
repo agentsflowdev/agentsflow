@@ -234,7 +234,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../workflows/sdlc/" class="md-tabs__link">
+        <a href="../../workflows/process/" class="md-tabs__link">
           
   
   
@@ -649,14 +649,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../workflows/sdlc/" class="md-nav__link">
+      <a href="../../workflows/process/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    SDLC Workflow
+    Process Workflow
   
 
     
@@ -1329,21 +1329,21 @@
 
 
 <h1 id="mcp-server">MCP Server<a class="headerlink" href="#mcp-server" title="Permanent link">&para;</a></h1>
-<p>The FastMCP bridge exposes the SDLC workflow to MCP-compatible clients using the same settings as the CLI.</p>
+<p>The FastMCP bridge exposes the process workflow to MCP-compatible clients using the same settings as the CLI.</p>
 <h2 id="run-the-server">Run the server<a class="headerlink" href="#run-the-server" title="Permanent link">&para;</a></h2>
 <p><div class="highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>fastmcp<span class="w"> </span>run<span class="w"> </span>agentsflow/mcp_server.py
 </code></pre></div>
-It respects <code>.env</code> values for Temporal (<code>TEMPORAL_ADDRESS</code>, <code>TEMPORAL_NAMESPACE</code>), workflow defaults (<code>SDLC_TASK_QUEUE</code>, <code>SDLC_AGENT_MODEL</code>), and credentials (<code>OPENAI_API_KEY</code>, Jira/GitHub tokens).</p>
+It respects <code>.env</code> values for Temporal (<code>TEMPORAL_ADDRESS</code>, <code>TEMPORAL_NAMESPACE</code>), workflow defaults (<code>PROCESS_TASK_QUEUE</code>, <code>PROCESS_AGENT_MODEL</code>), and credentials (<code>OPENAI_API_KEY</code>, Jira/GitHub tokens).</p>
 <h2 id="tools">Tools<a class="headerlink" href="#tools" title="Permanent link">&para;</a></h2>
 <ul>
-<li><code>start_sdlc_workflow(issue_url, repository_path)</code> – Starts the workflow asynchronously and returns <code>workflow_id</code>, <code>run_id</code>, <code>task_queue</code>, and connection metadata. <code>repository_path</code> must be an absolute path reachable by the worker host.</li>
-<li><code>await_sdlc_workflow_result(workflow_id)</code> – Waits for the latest run of the workflow and returns the serialized <code>SDLCWorkflowOutput</code>. If the run paused for clarification, the payload contains the open questions/assumptions instead.</li>
-<li><code>provide_sdlc_clarification(workflow_id, answers, assumptions=None)</code> – Signals the workflow to resume after a clarification pause.</li>
+<li><code>start_process_workflow(issue_url, repository_path)</code> – Starts the workflow asynchronously and returns <code>workflow_id</code>, <code>run_id</code>, <code>task_queue</code>, and connection metadata. <code>repository_path</code> must be an absolute path reachable by the worker host.</li>
+<li><code>await_process_workflow_result(workflow_id)</code> – Waits for the latest run of the workflow and returns the serialized <code>ProcessWorkflowOutput</code>. If the run paused for clarification, the payload contains the open questions/assumptions instead.</li>
+<li><code>provide_process_clarification(workflow_id, answers, assumptions=None)</code> – Signals the workflow to resume after a clarification pause.</li>
 </ul>
 <h2 id="operational-tips">Operational tips<a class="headerlink" href="#operational-tips" title="Permanent link">&para;</a></h2>
 <ul>
 <li>Run the MCP server near the worker to avoid network egress on repository paths and Temporal traffic.</li>
-<li>Clarification flows mirror the CLI: call <code>start</code>, then <code>await</code>, respond with <code>provide_sdlc_clarification</code> if needed, and <code>await</code> again.</li>
+<li>Clarification flows mirror the CLI: call <code>start</code>, then <code>await</code>, respond with <code>provide_process_clarification</code> if needed, and <code>await</code> again.</li>
 </ul>
 
 

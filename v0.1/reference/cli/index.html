@@ -234,7 +234,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../workflows/sdlc/" class="md-tabs__link">
+        <a href="../../workflows/process/" class="md-tabs__link">
           
   
   
@@ -649,14 +649,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../workflows/sdlc/" class="md-nav__link">
+      <a href="../../workflows/process/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    SDLC Workflow
+    Process Workflow
   
 
     
@@ -1332,11 +1332,11 @@
 <h2 id="cli-python-m-agentsflowcli">CLI (<code>python -m agentsflow.cli</code>)<a class="headerlink" href="#cli-python-m-agentsflowcli" title="Permanent link">&para;</a></h2>
 <ul>
 <li>Required inputs: <code>--repository</code> (path or git URL) and <code>--issue-url</code>.</li>
-<li>Connection flags: <code>--address</code> (<code>TEMPORAL_ADDRESS</code>), <code>--namespace</code> (<code>TEMPORAL_NAMESPACE</code>), <code>--task-queue</code> (<code>SDLC_TASK_QUEUE</code>).</li>
-<li>Workflow controls: <code>--reference</code>, <code>--coding-agent-provider {claude,gemini,codex}</code>, <code>--model</code> (<code>SDLC_AGENT_MODEL</code>), <code>--branch</code>.</li>
-<li>Output: <code>--json</code> / <code>--no-json</code> (defaults to <code>SDLC_JSON_OUTPUT</code>); prints the <code>SDLCWorkflowOutput</code> payload on success.</li>
+<li>Connection flags: <code>--address</code> (<code>TEMPORAL_ADDRESS</code>), <code>--namespace</code> (<code>TEMPORAL_NAMESPACE</code>), <code>--task-queue</code> (<code>PROCESS_TASK_QUEUE</code>).</li>
+<li>Workflow controls: <code>--reference</code>, <code>--coding-agent-provider {claude,gemini,codex}</code>, <code>--model</code> (<code>PROCESS_AGENT_MODEL</code>), <code>--branch</code>.</li>
+<li>Output: <code>--json</code> / <code>--no-json</code> (defaults to <code>PROCESS_JSON_OUTPUT</code>); prints the <code>ProcessWorkflowOutput</code> payload on success.</li>
 <li>Exit codes: <code>0</code> success, <code>2</code> clarification required (payload printed), <code>1</code> error, <code>130</code> interrupted.</li>
-<li>Workflow IDs are generated automatically as <code>sdlc-&lt;8 hex&gt;</code> unless you wrap the CLI yourself.</li>
+<li>Workflow IDs are generated automatically as <code>process-&lt;8 hex&gt;</code> unless you wrap the CLI yourself.</li>
 </ul>
 <p>Example run:
 <div class="highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </span>-m<span class="w"> </span>agentsflow.cli<span class="w"> </span><span class="se">\</span>
@@ -1348,7 +1348,7 @@
 <h2 id="worker-python-m-agentsflowworker">Worker (<code>python -m agentsflow.worker</code>)<a class="headerlink" href="#worker-python-m-agentsflowworker" title="Permanent link">&para;</a></h2>
 <ul>
 <li>Flags mirror the CLI connection options plus <code>--auto-approve</code> / <code>--require-approval</code> (maps to <code>ACP_AUTO_APPROVE</code>).</li>
-<li>Registers <code>AgentsFlowActivities().activities()</code> and the <code>SDLCWorkflow</code>, listening on the configured task queue until stopped.</li>
+<li>Registers <code>AgentsFlowActivities().activities()</code> and the <code>ProcessWorkflow</code>, listening on the configured task queue until stopped.</li>
 <li>Uses the Temporal Pydantic data converter to keep model serialization consistent with the workflow.</li>
 </ul>
 <h2 id="logging">Logging<a class="headerlink" href="#logging" title="Permanent link">&para;</a></h2>

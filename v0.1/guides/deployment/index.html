@@ -236,7 +236,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../workflows/sdlc/" class="md-tabs__link">
+        <a href="../../workflows/process/" class="md-tabs__link">
           
   
   
@@ -745,14 +745,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../workflows/sdlc/" class="md-nav__link">
+      <a href="../../workflows/process/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    SDLC Workflow
+    Process Workflow
   
 
     
@@ -1357,7 +1357,7 @@
 <li>Start Temporal (dev): <code>temporal server start-dev</code> or point <code>TEMPORAL_ADDRESS</code>/<code>TEMPORAL_NAMESPACE</code> at an existing cluster.</li>
 <li>Export secrets (<code>OPENAI_API_KEY</code>, <code>JIRA_EMAIL</code>/<code>JIRA_API_TOKEN</code> or <code>GITHUB_TOKEN</code>) in <code>.env</code>.</li>
 <li>Launch the worker:
-   <div class="highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </span>-m<span class="w"> </span>agentsflow.worker<span class="w"> </span>--task-queue<span class="w"> </span>agentsflow-sdlc
+   <div class="highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </span>-m<span class="w"> </span>agentsflow.worker<span class="w"> </span>--task-queue<span class="w"> </span>process-workflow
 </code></pre></div></li>
 <li>Trigger workflows from another shell via the CLI or MCP (see reference pages). Keep the worker running so activities stay registered.</li>
 </ol>
@@ -1375,7 +1375,7 @@ It reuses the CLI defaults for Temporal connection and environment variables. En
 <h2 id="operational-knobs">Operational knobs<a class="headerlink" href="#operational-knobs" title="Permanent link">&para;</a></h2>
 <ul>
 <li><code>ACP_AUTO_APPROVE=false</code> to require ACP permission prompts instead of auto-approving.</li>
-<li><code>SDLC_CODING_AGENT_PROVIDER</code> selects <code>claude</code> (default), <code>gemini</code>, or <code>codex</code> ACP binaries; override binary paths with <code>ACP_CLAUDE_BIN</code>, <code>ACP_GEMINI_BIN</code>, or <code>ACP_CODEX_BIN</code>.</li>
+<li><code>PROCESS_CODING_AGENT_PROVIDER</code> selects <code>claude</code> (default), <code>gemini</code>, or <code>codex</code> ACP binaries; override binary paths with <code>ACP_CLAUDE_BIN</code>, <code>ACP_GEMINI_BIN</code>, or <code>ACP_CODEX_BIN</code>.</li>
 <li><code>AGENTSFLOW_LOG_LEVEL=DEBUG</code> increases verbosity for both CLI and worker processes.</li>
 </ul>
 
