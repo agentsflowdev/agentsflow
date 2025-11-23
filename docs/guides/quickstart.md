@@ -1,6 +1,6 @@
 # Quickstart
 
-Spin up the process workflow locally and run it end-to-end. The recommended way to run AgentsFlow is as an MCP server using `uvx`.
+Agentsflow is the production-grade control plane for coding agents. It provides a harness that controls workflow setup, routing, and guardrails so coding agents stay on rails. The recommended way to run AgentsFlow is as an MCP server using `uvx`.
 
 ## Prerequisites
 
