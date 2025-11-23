@@ -722,9 +722,11 @@ def _render_review_evaluation_prompt(task: IssuePayload, transcript: str) -> str
         "Coding agent review transcript:",
         transcript.strip() or "(no output)",
         (
-            "Summarise the review findings and respond with ReviewOutput. If you identify any issue or recommendation "
-            "that requires modifying code, tests, documentation, or automation, classify it as an issue and set "
-            "approval to False. "
+            "Summarise the review findings and respond with ReviewOutput. Focus only on behaviours and files "
+            "described in the transcript—do not invent new requirements or hardening tasks outside that scope. "
+            "If you identify any issue that requires modifying code, tests, documentation, or automation, classify "
+            "it as an issue and set approval to False. When only recommendations remain, set approval to True and "
+            "leave the issues list empty. "
             "Flag approval as False if any blocking issues remain or if the transcript lacks concrete evidence that "
             "code and automated tests were inspected. "
             "Ignore the state of git commits or untracked files—the workflow handles committing in a later step."
