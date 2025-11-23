@@ -55,6 +55,10 @@ from temporalio import activity
 
 LOGGER = logging.getLogger(__name__)
 
+# Increase the asyncio StreamReader limit for ACP stdio to avoid LimitOverrunError
+# when large newline-delimited JSON frames are emitted by the agent process.
+_STREAM_READER_LIMIT = int(os.getenv("ACP_STREAM_READER_LIMIT", 8 * 1024 * 1024))
+
 
 def _debug(message: str, extra: dict[str, object] | None = None) -> None:
     """Log debug statements even when no activity context is active."""
@@ -159,6 +163,7 @@ class _SessionRegistry:
                 "command": command,
                 "workspace_dir": str(workspace_dir),
                 "auto_approve": auto_approve,
+                "stream_limit": _STREAM_READER_LIMIT,
             },
         )
         process = await asyncio.create_subprocess_exec(
@@ -166,6 +171,7 @@ class _SessionRegistry:
             stdin=asyncio.subprocess.PIPE,
             stdout=asyncio.subprocess.PIPE,
             stderr=None,
+            limit=_STREAM_READER_LIMIT,
         )
         _debug("ACP process started", {"pid": process.pid})
 
