@@ -1,0 +1,64 @@
+name: Docs Deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docs/**"
+      - "mkdocs.yml"
+      - "pyproject.toml"
+      - "uv.lock"
+      - ".github/workflows/docs.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  build-and-deploy:
+    name: Build and Deploy
+    runs-on: ubuntu-latest
+    concurrency: docs-${{ github.ref }}
+    env:
+      UV_LINK_MODE: copy
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          python-version: "3.12"
+          enable-cache: true
+          cache-dependency-path: uv.lock
+
+      - name: Install dependencies
+        run: uv sync --extra dev --frozen
+
+      - name: Configure git for mike
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Build docs
+        run: uv run --extra dev mkdocs build --strict
+
+      - name: Deploy docs with mike
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          uv run --extra dev mike deploy --push --update-aliases v0.1 latest
+          uv run --extra dev mike set-default --push latest
+
+      - name: Verify CNAME on gh-pages
+        run: |
+          CNAME_VALUE=$(cat docs/CNAME)
+          git fetch origin gh-pages
+          if ! git show origin/gh-pages:CNAME 2>/dev/null | grep -qx "$CNAME_VALUE"; then
+            echo "Missing or mismatched CNAME on gh-pages; expected '$CNAME_VALUE'."
+            echo "Please add the CNAME file to gh-pages to keep the custom domain active."
+            exit 1
+          fi
