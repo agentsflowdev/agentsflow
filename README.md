@@ -3,7 +3,7 @@ AgentsFlow
 
 [![Docs](https://img.shields.io/badge/docs-latest-0a7ea4?logo=readthedocs&logoColor=white)](https://docs.agentsflow.dev)
 
-Temporal workflows and activities for the automation stack. This README is intentionally thin—full operator and contributor docs live at [docs.agentsflow.dev](https://docs.agentsflow.dev). New operators can jump straight to the Quickstart/Deployment guides on the docs site.
+Agentsflow is the production-grade control plane for coding agents. It provides a harness that controls workflow setup, routing, and guardrails so coding agents stay on rails. Full operator and contributor docs live at [docs.agentsflow.dev](https://docs.agentsflow.dev).
 
 Quick start (MCP)
 -----------------
@@ -57,9 +57,13 @@ uvx agentsflow --transport streamable-http
 Regardless of how you run it (Option 1 or 2), you can track workflow execution and status in the Temporal Web UI at http://localhost:8233.
 
 ### 3. Use it
-Once connected, you can use natural language to trigger workflows:
-- "Create a feature branch for issue JIRA-123"
-- "Start the process workflow for the current repository"
+Once connected, you can use natural language to interact with the process workflow. A few concrete prompts:
+- "Call `start_agentsflow_process` on this repo with issue https://jira.example.com/browse/TEAM-123."
+- "Kick off `start_agentsflow_process` with task text 'Fix 500 error when cookie is missing' for the current repo."
+- "The workflow paused; send these answers via `provide_agentsflow_clarification` and then `await_agentsflow_result`."
+- "Check the latest status for workflow `process-1a2b3c` using `await_agentsflow_result`."
+
+You can supply either an issue URL or a free-text task when calling `start_agentsflow_process`, but not both.
 
 Architecture (high level)
 -------------------------
