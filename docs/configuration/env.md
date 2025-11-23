@@ -24,6 +24,7 @@ AgentsFlow entry points load configuration from environment variables and `.env`
 - `ACP_AUTO_APPROVE` (default `true`) – Auto-approve ACP permissions; set `false` to prompt for approvals.
 - `ACP_CLAUDE_BIN` / `ACP_GEMINI_BIN` / `ACP_CODEX_BIN` – Custom paths to ACP binaries; otherwise the worker searches `PATH`.
 - `ACP_STREAM_READER_LIMIT` (default `8388608`) – Maximum bytes read from ACP streaming responses; increase for very large transcripts.
+- `PROCESS_ACP_ACTIVITY_TIMEOUT_MINUTES` (default `60`) – Start-to-close timeout in minutes for ACP activity invocations; must be greater than zero.
 
 ## Logging & diagnostics
 - `AGENTSFLOW_LOG_LEVEL` (default `INFO`) – Controls verbosity for CLI, worker, and MCP logs.

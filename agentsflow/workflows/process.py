@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import uuid
 from collections.abc import Sequence
 from datetime import timedelta
@@ -35,6 +36,21 @@ from agentsflow.activities.agents import (
 MAX_IMPLEMENTATION_ATTEMPTS = 4
 MAX_TEST_ATTEMPTS = 5
 MAX_REVIEW_ATTEMPTS = 5
+ACP_ACTIVITY_TIMEOUT_ENV = "PROCESS_ACP_ACTIVITY_TIMEOUT_MINUTES"
+DEFAULT_ACP_ACTIVITY_TIMEOUT_MINUTES = 60
+
+
+def _acp_activity_timeout() -> timedelta:
+    """Resolve the ACP start_to_close timeout from env with a safe default."""
+
+    raw = os.getenv(ACP_ACTIVITY_TIMEOUT_ENV)
+    try:
+        minutes = int(raw) if raw is not None else DEFAULT_ACP_ACTIVITY_TIMEOUT_MINUTES
+    except ValueError:
+        minutes = DEFAULT_ACP_ACTIVITY_TIMEOUT_MINUTES
+    if minutes <= 0:
+        minutes = DEFAULT_ACP_ACTIVITY_TIMEOUT_MINUTES
+    return timedelta(minutes=minutes)
 
 
 class AgentRun(BaseModel):
@@ -246,7 +262,7 @@ class ProcessWorkflow:
                     session_id=session_id,
                     workspace_dir=git_result.worktree_path,
                 ),
-                start_to_close_timeout=timedelta(minutes=15),
+                start_to_close_timeout=_acp_activity_timeout(),
                 retry_policy=RetryPolicy(maximum_attempts=1),
                 result_type=ACPResponse,
             )
