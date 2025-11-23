@@ -6,12 +6,8 @@ AgentsFlow entry points load configuration from environment variables and `.env`
 - `TEMPORAL_ADDRESS` (default `127.0.0.1:7233`) – Temporal frontend address for CLI, worker, and MCP.
 - `TEMPORAL_NAMESPACE` (default `default`) – Temporal namespace to target.
 - `SDLC_TASK_QUEUE` (default `agentsflow-sdlc`) – Task queue polled by the worker and targeted by the CLI/MCP.
-- `SDLC_REFERENCE` – Optional git reference for the worktree base (branch/tag/commit).
-- `SDLC_BRANCH_NAME` – Optional branch name to commit workflow output to (otherwise derived from the release plan).
 
 ## Workflow inputs & agent overrides
-- `SDLC_REPOSITORY` – Local path or remote URL to the git repository (required unless passed to the CLI/MCP).
-- `SDLC_ISSUE_URL` – Issue to process (required unless passed to the CLI/MCP).
 - `SDLC_CODING_AGENT_PROVIDER` (default `claude`) – ACP binary to use: `claude`, `gemini`, or `codex`.
 - `SDLC_AGENT_MODEL` – Overrides the OpenAI chat model used by the Pydantic AI agents.
 - `SDLC_JSON_OUTPUT` – Set to `true` to default the CLI to JSON output.
@@ -27,6 +23,7 @@ AgentsFlow entry points load configuration from environment variables and `.env`
 ## ACP binaries & permissions
 - `ACP_AUTO_APPROVE` (default `true`) – Auto-approve ACP permissions; set `false` to prompt for approvals.
 - `ACP_CLAUDE_BIN` / `ACP_GEMINI_BIN` / `ACP_CODEX_BIN` – Custom paths to ACP binaries; otherwise the worker searches `PATH`.
+- `ACP_STREAM_READER_LIMIT` (default `8388608`) – Maximum bytes read from ACP streaming responses; increase for very large transcripts.
 
 ## Logging & diagnostics
 - `AGENTSFLOW_LOG_LEVEL` (default `INFO`) – Controls verbosity for CLI, worker, and MCP logs.
