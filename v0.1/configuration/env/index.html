@@ -1379,13 +1379,9 @@
 <li><code>TEMPORAL_ADDRESS</code> (default <code>127.0.0.1:7233</code>) – Temporal frontend address for CLI, worker, and MCP.</li>
 <li><code>TEMPORAL_NAMESPACE</code> (default <code>default</code>) – Temporal namespace to target.</li>
 <li><code>SDLC_TASK_QUEUE</code> (default <code>agentsflow-sdlc</code>) – Task queue polled by the worker and targeted by the CLI/MCP.</li>
-<li><code>SDLC_REFERENCE</code> – Optional git reference for the worktree base (branch/tag/commit).</li>
-<li><code>SDLC_BRANCH_NAME</code> – Optional branch name to commit workflow output to (otherwise derived from the release plan).</li>
 </ul>
 <h2 id="workflow-inputs-agent-overrides">Workflow inputs &amp; agent overrides<a class="headerlink" href="#workflow-inputs-agent-overrides" title="Permanent link">&para;</a></h2>
 <ul>
-<li><code>SDLC_REPOSITORY</code> – Local path or remote URL to the git repository (required unless passed to the CLI/MCP).</li>
-<li><code>SDLC_ISSUE_URL</code> – Issue to process (required unless passed to the CLI/MCP).</li>
 <li><code>SDLC_CODING_AGENT_PROVIDER</code> (default <code>claude</code>) – ACP binary to use: <code>claude</code>, <code>gemini</code>, or <code>codex</code>.</li>
 <li><code>SDLC_AGENT_MODEL</code> – Overrides the OpenAI chat model used by the Pydantic AI agents.</li>
 <li><code>SDLC_JSON_OUTPUT</code> – Set to <code>true</code> to default the CLI to JSON output.</li>
@@ -1403,6 +1399,7 @@
 <ul>
 <li><code>ACP_AUTO_APPROVE</code> (default <code>true</code>) – Auto-approve ACP permissions; set <code>false</code> to prompt for approvals.</li>
 <li><code>ACP_CLAUDE_BIN</code> / <code>ACP_GEMINI_BIN</code> / <code>ACP_CODEX_BIN</code> – Custom paths to ACP binaries; otherwise the worker searches <code>PATH</code>.</li>
+<li><code>ACP_STREAM_READER_LIMIT</code> (default <code>8388608</code>) – Maximum bytes read from ACP streaming responses; increase for very large transcripts.</li>
 </ul>
 <h2 id="logging-diagnostics">Logging &amp; diagnostics<a class="headerlink" href="#logging-diagnostics" title="Permanent link">&para;</a></h2>
 <ul>
