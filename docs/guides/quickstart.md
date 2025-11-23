@@ -33,6 +33,7 @@ Set `AGENTSFLOW_LOG_LEVEL=DEBUG` if you want verbose logs, and use `ACP_AUTO_APP
 ## 3) Launch the stack (recommended)
 Start everything—Temporal dev server, worker, and MCP server—with a single command and live logs:
 ```bash
+export PYTHONPATH=.
 python -m agentsflow.dev
 ```
 By default it uses the `stdio` transport for MCP; override with `--transport http|sse|streamable-http` as needed. The launcher only starts Temporal if port 7233 is free; otherwise it reuses an existing cluster.

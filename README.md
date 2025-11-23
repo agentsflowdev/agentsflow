@@ -8,6 +8,8 @@ Temporal workflows and activities for the AgentsFlow SDLC automation stack. This
 Quick start (local stack)
 -------------------------
 ```bash
+uv sync --extra dev
+export PYTHONPATH=.
 python -m agentsflow.dev
 ```
 This launches Temporal dev (if port 7233 is free), the AgentsFlow worker, and the MCP server with `stdio` transport. Set your `.env` first (`OPENAI_API_KEY`, Jira or GitHub creds) and pass `--transport http|sse|streamable-http` if you prefer a different MCP transport. Keep the process running while you trigger workflows via the CLI or MCP.
