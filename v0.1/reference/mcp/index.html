@@ -1336,14 +1336,14 @@
 It respects <code>.env</code> values for Temporal (<code>TEMPORAL_ADDRESS</code>, <code>TEMPORAL_NAMESPACE</code>), workflow defaults (<code>PROCESS_TASK_QUEUE</code>, <code>PROCESS_AGENT_MODEL</code>), and credentials (<code>OPENAI_API_KEY</code>, Jira/GitHub tokens).</p>
 <h2 id="tools">Tools<a class="headerlink" href="#tools" title="Permanent link">&para;</a></h2>
 <ul>
-<li><code>start_process_workflow(issue_url=None, task_text=None, repository_path)</code> – Starts the workflow asynchronously and returns <code>workflow_id</code>, <code>run_id</code>, <code>task_queue</code>, and connection metadata. Provide exactly one of <code>issue_url</code> (Jira/GitHub/etc.) <strong>or</strong> <code>task_text</code> (free-form description). <code>repository_path</code> must be an absolute path reachable by the worker host.</li>
-<li><code>await_process_workflow_result(workflow_id)</code> – Waits for the latest run of the workflow and returns the serialized <code>ProcessWorkflowOutput</code>. If the run paused for clarification, the payload contains the open questions/assumptions instead.</li>
-<li><code>provide_process_clarification(workflow_id, answers, assumptions=None)</code> – Signals the workflow to resume after a clarification pause.</li>
+<li><code>start_agentsflow_process(issue_url=None, task_text=None, repository_path)</code> – Starts the workflow asynchronously and returns <code>workflow_id</code>, <code>run_id</code>, <code>task_queue</code>, and connection metadata. Provide exactly one of <code>issue_url</code> (Jira/GitHub/etc.) <strong>or</strong> <code>task_text</code> (free-form description). <code>repository_path</code> must be an absolute path reachable by the worker host.</li>
+<li><code>await_agentsflow_result(workflow_id)</code> – Waits for the latest run of the workflow and returns the serialized <code>ProcessWorkflowOutput</code>. If the run paused for clarification, the payload contains the open questions/assumptions instead.</li>
+<li><code>provide_agentsflow_clarification(workflow_id, answers, assumptions=None)</code> – Signals the workflow to resume after a clarification pause.</li>
 </ul>
 <h2 id="operational-tips">Operational tips<a class="headerlink" href="#operational-tips" title="Permanent link">&para;</a></h2>
 <ul>
 <li>Run the MCP server near the worker to avoid network egress on repository paths and Temporal traffic.</li>
-<li>Clarification flows mirror the CLI: call <code>start</code>, then <code>await</code>, respond with <code>provide_process_clarification</code> if needed, and <code>await</code> again.</li>
+<li>Clarification flows mirror the CLI: call <code>start</code>, then <code>await</code>, respond with <code>provide_agentsflow_clarification</code> if needed, and <code>await</code> again.</li>
 </ul>
 
 
