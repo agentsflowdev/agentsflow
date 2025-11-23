@@ -1,4 +1,4 @@
-"""FastMCP server exposing the AgentsFlow SDLC workflow."""
+"""FastMCP server exposing the process workflow."""
 
 from __future__ import annotations
 
@@ -19,12 +19,12 @@ from agentsflow.logging_utils import configure_logging
 configure_logging(CLISettings().log_level)
 
 mcp = FastMCP(
-    "AgentsFlow SDLC",
+    "AgentsFlow",
     instructions=(
-        "AgentsFlow exposes the SDLC Temporal workflow over MCP. Start the workflow with "
-        "start_sdlc_workflow (issue_url + repository_path) to receive the workflow_id/run_id, then call "
-        "await_sdlc_workflow_result with the workflow_id when you're ready to fetch the SDLCWorkflowOutput. "
-        "If a run pauses for clarifications, answer them via provide_sdlc_clarification before waiting again. "
+        "This MCP server exposes the automation workflow. Start it with "
+        "start_process_workflow (issue_url + repository_path) to receive the workflow_id/run_id, then call "
+        "await_process_workflow_result with the workflow_id when you're ready to fetch the workflow output. "
+        "If a run pauses for clarifications, answer them via provide_process_clarification before waiting again. "
         "The repository_path argument must be the absolute filesystem path to the repo root "
         "(e.g., /Users/acme/src/app). "
         "Authentication, Temporal connection details, and overrides are read from environment variables or .env."
@@ -65,7 +65,7 @@ async def _start_workflow_tool_impl(
         issue_url=issue_url,
     )
 
-    await ctx.info(f"Submitting SDLC workflow for issue {issue_url} against repository path {repository_path}.")
+    await ctx.info(f"Submitting workflow for issue {issue_url} against repository path {repository_path}.")
 
     handle = await _start_workflow_handle(args)
 
@@ -83,7 +83,7 @@ async def _start_workflow_tool_impl(
     }
 
     if remind_about_result:
-        await ctx.info("Workflow started. Call await_sdlc_workflow_result with the workflow_id to fetch the output.")
+        await ctx.info("Workflow started. Call await_process_workflow_result with the workflow_id to fetch the output.")
 
     return payload
 
@@ -109,7 +109,7 @@ async def _await_workflow_tool_impl(
 
 
 @mcp.tool
-async def provide_sdlc_clarification(
+async def provide_process_clarification(
     workflow_id: str,
     answers: list[str],
     assumptions: list[str] | None = None,
@@ -127,7 +127,7 @@ async def provide_sdlc_clarification(
 
 
 @mcp.tool
-async def start_sdlc_workflow(
+async def start_process_workflow(
     issue_url: str,
     repository_path: str,
     *,
@@ -147,7 +147,7 @@ async def start_sdlc_workflow(
 
 
 @mcp.tool
-async def await_sdlc_workflow_result(
+async def await_process_workflow_result(
     workflow_id: str,
     *,
     ctx: Context,

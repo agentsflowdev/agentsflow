@@ -1,5 +1,5 @@
 from agentsflow.activities.issues.models import IssueComment, IssueDetails
-from agentsflow.workflows.sdlc import _build_task_payload
+from agentsflow.workflows.process import _build_task_payload
 
 
 def test_build_task_payload_filters_empty_comments() -> None:

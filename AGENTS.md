@@ -3,13 +3,13 @@
 Note: the canonical contributor docs are moving into the MkDocs site under `docs/contributing/` (preview with `uv run mkdocs serve`). This file remains as a quick pointer until the migration is complete.
 
 ## Project Structure & Module Organization
-Temporal activities live in `agentsflow/activities/` (git worktree, issue ingestion, Claude ACP). Workflows reside in `agentsflow/workflows/`; entry points are `agentsflow/worker.py` and `agentsflow/cli.py`. Shared agent utilities (`agentsflow/agents/`, `agentsflow/issues/`) feed both the CLI and the FastMCP server (`agentsflow/mcp_server.py`). Tests in `tests/` mirror module names (e.g., `test_sdlc_workflow.py`), and SDLC fixtures live in `SDLC.json`.
+Temporal activities live in `agentsflow/activities/` (git worktree, issue ingestion, Claude ACP). Workflows reside in `agentsflow/workflows/`; entry points are `agentsflow/worker.py` and `agentsflow/cli.py`. Shared agent utilities (`agentsflow/agents/`, `agentsflow/issues/`) feed both the CLI and the FastMCP server (`agentsflow/mcp_server.py`). Tests in `tests/` mirror module names (e.g., `test_process_workflow.py`).
 
 ## Build, Test & Development Commands
 - `uv sync --extra dev` – install pinned deps for Python 3.12+ plus dev extras.
 - `uv run --extra dev pytest` – run the async pytest suite; append `tests/test_git_worktree.py` to scope it.
-- `python -m agentsflow.worker` – start the Temporal worker; reads `.env` for `TEMPORAL_ADDRESS`, `SDLC_TASK_QUEUE`, credentials.
-- `python -m agentsflow.cli --issue-url … --repository … --json` – kick off the SDLC workflow locally with optional overrides.
+- `python -m agentsflow.worker` – start the Temporal worker; reads `.env` for `TEMPORAL_ADDRESS`, `PROCESS_TASK_QUEUE`, credentials.
+- `python -m agentsflow.cli --issue-url … --repository … --json` – kick off the process workflow locally with optional overrides.
 - `uv run fastmcp run agentsflow/mcp_server.py` – expose the same workflow over MCP for agent clients.
 
 ## Coding Style & Naming Conventions

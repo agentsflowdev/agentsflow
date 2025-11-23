@@ -5,12 +5,12 @@ AgentsFlow entry points load configuration from environment variables and `.env`
 ## Temporal connection & workflow routing
 - `TEMPORAL_ADDRESS` (default `127.0.0.1:7233`) – Temporal frontend address for CLI, worker, and MCP.
 - `TEMPORAL_NAMESPACE` (default `default`) – Temporal namespace to target.
-- `SDLC_TASK_QUEUE` (default `agentsflow-sdlc`) – Task queue polled by the worker and targeted by the CLI/MCP.
+- `PROCESS_TASK_QUEUE` (default `process-workflow`) – Task queue polled by the worker and targeted by the CLI/MCP.
 
 ## Workflow inputs & agent overrides
-- `SDLC_CODING_AGENT_PROVIDER` (default `claude`) – ACP binary to use: `claude`, `gemini`, or `codex`.
-- `SDLC_AGENT_MODEL` – Overrides the OpenAI chat model used by the Pydantic AI agents.
-- `SDLC_JSON_OUTPUT` – Set to `true` to default the CLI to JSON output.
+- `PROCESS_CODING_AGENT_PROVIDER` (default `claude`) – ACP binary to use: `claude`, `gemini`, or `codex`.
+- `PROCESS_AGENT_MODEL` – Overrides the OpenAI chat model used by the Pydantic AI agents.
+- `PROCESS_JSON_OUTPUT` – Set to `true` to default the CLI to JSON output.
 
 ## Authentication & provider settings
 - `OPENAI_API_KEY` (required) – Used by the Pydantic AI agents inside the workflow activities.

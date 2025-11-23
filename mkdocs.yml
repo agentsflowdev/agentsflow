@@ -12,7 +12,7 @@ nav:
       - Upgrade Notes: guides/upgrades.md
       - Providers: guides/providers.md
   - Workflows:
-      - SDLC Workflow: workflows/sdlc.md
+      - Process Workflow: workflows/process.md
   - Operations:
       - Runbooks: ops/runbooks.md
   - Configuration:

@@ -3,7 +3,7 @@ AgentsFlow
 
 [![Docs](https://img.shields.io/badge/docs-latest-0a7ea4?logo=readthedocs&logoColor=white)](https://docs.agentsflow.dev)
 
-Temporal workflows and activities for the AgentsFlow SDLC automation stack. This README is intentionally thin—full operator and contributor docs live at [docs.agentsflow.dev](https://docs.agentsflow.dev). New operators can jump straight to the Quickstart/Deployment guides on the docs site.
+Temporal workflows and activities for the automation stack. This README is intentionally thin—full operator and contributor docs live at [docs.agentsflow.dev](https://docs.agentsflow.dev). New operators can jump straight to the Quickstart/Deployment guides on the docs site.
 
 Quick start (MCP)
 -----------------
@@ -49,18 +49,18 @@ uvx agentsflow --transport streamable-http
 ```
 
 ### Tracking Progress
-Regardless of how you run AgentsFlow (Option 1 or 2), you can track workflow execution and status in the Temporal Web UI at http://localhost:8233.
+Regardless of how you run it (Option 1 or 2), you can track workflow execution and status in the Temporal Web UI at http://localhost:8233.
 
 ### 3. Use it
 Once connected, you can use natural language to trigger workflows:
 - "Create a feature branch for issue JIRA-123"
-- "Start the SDLC workflow for the current repository"
+- "Start the process workflow for the current repository"
 
 Architecture (high level)
 -------------------------
 ```mermaid
 flowchart LR
-  Dev[CLI / MCP client] -->|start SDLC workflow| Temporal[Temporal Server]
+  Dev[CLI / MCP client] -->|start process workflow| Temporal[Temporal Server]
   Temporal --> Worker[AgentsFlow worker]
   Worker --> Activities[Git / Issue / ACP activities]
   Activities --> Repo[(Git worktree)]
@@ -78,5 +78,5 @@ Supported issue providers
 Docs
 ----
 - New operators: Quickstart + deployment: https://docs.agentsflow.dev
-- SDLC workflow: https://docs.agentsflow.dev/workflows/sdlc
+- Process workflow: https://docs.agentsflow.dev/workflows/process
 - Providers + env reference: https://docs.agentsflow.dev/guides/providers

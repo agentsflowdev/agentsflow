@@ -30,4 +30,4 @@ Guidance for rolling AgentsFlow deployments forward while keeping docs and depen
 
 ## Tracking breaking changes
 - New or renamed environment variables should be captured in the [Environment Variables](../configuration/env.md) reference and communicated to operators before rollout.
-- Temporal workflow changes that alter inputs/outputs should be coordinated with MCP clients and any automation that parses `SDLCWorkflowOutput`.
+- Temporal workflow changes that alter inputs/outputs should be coordinated with MCP clients and any automation that parses `ProcessWorkflowOutput`.

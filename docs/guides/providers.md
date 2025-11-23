@@ -1,6 +1,6 @@
 # Providers
 
-AgentsFlow reads issues via pluggable providers registered with the workflow activities. Provider selection is automatic unless you explicitly set `provider` on `IssueRequest`.
+The automation reads issues via pluggable providers registered with the workflow activities. Provider selection is automatic unless you explicitly set `provider` on `IssueRequest`.
 
 ## Routing rules
 - The registry prefers providers in reverse registration order (Jira, then GitHub) that both support the URL and are configured.

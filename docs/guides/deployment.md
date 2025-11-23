@@ -7,7 +7,7 @@ Choose between local processes, Docker Compose, or the MCP server. All options r
 2. Export secrets (`OPENAI_API_KEY`, `JIRA_EMAIL`/`JIRA_API_TOKEN` or `GITHUB_TOKEN`) in `.env`.
 3. Launch the worker:
    ```bash
-   uv run python -m agentsflow.worker --task-queue agentsflow-sdlc
+   uv run python -m agentsflow.worker --task-queue process-workflow
    ```
 4. Trigger workflows from another shell via the CLI or MCP (see reference pages). Keep the worker running so activities stay registered.
 
@@ -28,5 +28,5 @@ It reuses the CLI defaults for Temporal connection and environment variables. En
 
 ## Operational knobs
 - `ACP_AUTO_APPROVE=false` to require ACP permission prompts instead of auto-approving.
-- `SDLC_CODING_AGENT_PROVIDER` selects `claude` (default), `gemini`, or `codex` ACP binaries; override binary paths with `ACP_CLAUDE_BIN`, `ACP_GEMINI_BIN`, or `ACP_CODEX_BIN`.
+- `PROCESS_CODING_AGENT_PROVIDER` selects `claude` (default), `gemini`, or `codex` ACP binaries; override binary paths with `ACP_CLAUDE_BIN`, `ACP_GEMINI_BIN`, or `ACP_CODEX_BIN`.
 - `AGENTSFLOW_LOG_LEVEL=DEBUG` increases verbosity for both CLI and worker processes.

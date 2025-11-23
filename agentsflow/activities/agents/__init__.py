@@ -1,4 +1,4 @@
-"""LLM agent integrations used by AgentsFlow workflows."""
+"""LLM agent integrations used by the automation workflows."""
 
 from dataclasses import replace
 from typing import Any
@@ -22,26 +22,26 @@ from .models import (
     ReviewOutput,
     TestPlanOutput,
 )
-from .sdlc import (
+from .process import (
     DEFAULT_MODEL_NAME,
     MODEL_ENV_VAR,
 )
-from .sdlc import (
+from .process import (
     run_clarification_agent as _run_clarification_agent,
 )
-from .sdlc import (
+from .process import (
     run_evaluation_agent as _run_evaluation_agent,
 )
-from .sdlc import (
+from .process import (
     run_implementation_agent as _run_implementation_agent,
 )
-from .sdlc import (
+from .process import (
     run_release_agent as _run_release_agent,
 )
-from .sdlc import (
+from .process import (
     run_review_agent as _run_review_agent,
 )
-from .sdlc import (
+from .process import (
     run_tests_agent as _run_tests_agent,
 )
 

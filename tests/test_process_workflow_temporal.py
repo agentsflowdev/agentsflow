@@ -31,16 +31,16 @@ from agentsflow.activities.agents.models import (
     ReviewOutput,
     TestPlanOutput,
 )
-from agentsflow.workflows import AgentRun, SDLCWorkflow, SDLCWorkflowInput
+from agentsflow.workflows import AgentRun, ProcessWorkflow, ProcessWorkflowInput
 from temporal_settings import TemporalTestSettings
 
 
 @pytest.fixture(autouse=True)
 def fast_attempt_limits(monkeypatch):
     """Keep workflow retry loops tiny so Temporal tests finish quickly."""
-    monkeypatch.setattr("agentsflow.workflows.sdlc.MAX_IMPLEMENTATION_ATTEMPTS", 2)
-    monkeypatch.setattr("agentsflow.workflows.sdlc.MAX_TEST_ATTEMPTS", 2)
-    monkeypatch.setattr("agentsflow.workflows.sdlc.MAX_REVIEW_ATTEMPTS", 2)
+    monkeypatch.setattr("agentsflow.workflows.process.MAX_IMPLEMENTATION_ATTEMPTS", 2)
+    monkeypatch.setattr("agentsflow.workflows.process.MAX_TEST_ATTEMPTS", 2)
+    monkeypatch.setattr("agentsflow.workflows.process.MAX_REVIEW_ATTEMPTS", 2)
 
 
 class FakeAgentResult:
@@ -220,7 +220,7 @@ async def _run_workflow_with_mocks(
         env = await WorkflowEnvironment.start_time_skipping(data_converter=pydantic_data_converter)
         client = env.client
         shutdown_cb = env.shutdown
-        task_queue = "test-sdlc"
+        task_queue = "test-process"
     else:
         client = await temporal_client.Client.connect(
             external_settings.address,
@@ -238,7 +238,7 @@ async def _run_workflow_with_mocks(
         async with Worker(
             client,
             task_queue=task_queue,
-            workflows=[SDLCWorkflow],
+            workflows=[ProcessWorkflow],
             activities=[
                 create_git_worktree_activity,
                 read_issue_activity,
@@ -253,16 +253,16 @@ async def _run_workflow_with_mocks(
                 run_clarification_agent_activity,
             ],
         ):
-            workflow_input = SDLCWorkflowInput(
+            workflow_input = ProcessWorkflowInput(
                 repository="git@example.com:org/repo.git",
                 reference="main",
                 issue_url="https://example.atlassian.net/browse/ABC-123",
                 branch_name=scenario.branch_override,
             )
             return await client.execute_workflow(
-                SDLCWorkflow.run,
+                ProcessWorkflow.run,
                 workflow_input,
-                id=f"sdlc-test-{uuid4().hex}",
+                id=f"process-test-{uuid4().hex}",
                 task_queue=task_queue,
                 retry_policy=RetryPolicy(maximum_attempts=1),
             )

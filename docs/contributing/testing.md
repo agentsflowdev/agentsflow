@@ -1,3 +1,3 @@
 # Testing
 
-> Placeholder: document pytest usage, async tests, fixtures (SDLC.json), and how to scope tests with `-k`.
+> Placeholder: document pytest usage, async tests, fixture expectations, and how to scope tests with `-k`.

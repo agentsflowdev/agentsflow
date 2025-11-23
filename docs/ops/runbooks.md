@@ -1,16 +1,16 @@
 # Operations & Runbooks
 
-Operational procedures for the SDLC workflow and AgentsFlow worker.
+Operational procedures for the process workflow and worker.
 
 ## Worker lifecycle
-- Start: `uv run python -m agentsflow.worker --task-queue agentsflow-sdlc`
+- Start: `uv run python -m agentsflow.worker --task-queue process-workflow`
 - Stop: `Ctrl+C` (returns 130). Restart after config changes or upgrades so Temporal reloads activities.
 - Logs: stdout/stderr; increase verbosity with `AGENTSFLOW_LOG_LEVEL=DEBUG`.
 
 ## Responding to clarifications
 - When a run pauses for clarification, the CLI exits with status 2 and prints questions/assumptions.
-- Provide answers via the MCP tool `provide_sdlc_clarification` or a Temporal signal named `provide_clarification` (args: lists of answers and assumptions).
-- Re-run `await_sdlc_workflow_result` (MCP) or watch Temporal UI until the run resumes.
+- Provide answers via the MCP tool `provide_process_clarification` or a Temporal signal named `provide_clarification` (args: lists of answers and assumptions).
+- Re-run `await_process_workflow_result` (MCP) or watch Temporal UI until the run resumes.
 
 ## Provider and auth issues
 - Jira: ensure `JIRA_EMAIL`/`JIRA_API_TOKEN` are set and the issue host matches `atlassian.net`, contains `jira`, or is in `JIRA_HOST_ALLOWLIST`.
@@ -28,4 +28,4 @@ Operational procedures for the SDLC workflow and AgentsFlow worker.
 ## Health checks
 - Temporal Web UI (port 8233 in Docker Compose) shows workflow status, queries, and history.
 - `temporal workflow list --namespace <ns>` confirms the worker is polling the expected task queue.
-- Automated verification: `uv run --extra dev pytest -k sdlc_workflow` exercises the workflow entrypoints.
+- Automated verification: `uv run --extra dev pytest -k process_workflow` exercises the workflow entrypoints.

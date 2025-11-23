@@ -1,4 +1,4 @@
-"""Shared data models for SDLC-related agent activities."""
+"""Shared data models for process-related agent activities."""
 
 from __future__ import annotations
 
