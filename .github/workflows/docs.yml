@@ -53,12 +53,15 @@ jobs:
           uv run --extra dev mike deploy --push --update-aliases v0.1 latest
           uv run --extra dev mike set-default --push latest
 
-      - name: Verify CNAME on gh-pages
+      - name: Ensure CNAME on gh-pages
         run: |
           CNAME_VALUE=$(cat docs/CNAME)
           git fetch origin gh-pages
-          if ! git show origin/gh-pages:CNAME 2>/dev/null | grep -qx "$CNAME_VALUE"; then
-            echo "Missing or mismatched CNAME on gh-pages; expected '$CNAME_VALUE'."
-            echo "Please add the CNAME file to gh-pages to keep the custom domain active."
-            exit 1
+          git worktree add /tmp/gh-pages gh-pages
+          echo "$CNAME_VALUE" > /tmp/gh-pages/CNAME
+          cd /tmp/gh-pages
+          if ! git diff --quiet -- CNAME; then
+            git add CNAME
+            git commit -m "docs: ensure CNAME"
+            git push origin gh-pages
           fi
