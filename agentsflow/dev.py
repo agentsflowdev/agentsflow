@@ -9,7 +9,9 @@ import click
 from dotenv import dotenv_values
 from rich.console import Console
 
-console = Console()
+stdout_console = Console(file=sys.stdout)
+stderr_console = Console(file=sys.stderr)
+ACTIVE_CONSOLE: Console = stdout_console
 
 # Global list to keep track of running processes for cleanup
 PROCESSES: list[asyncio.subprocess.Process] = []
@@ -44,8 +46,13 @@ def build_process_env(extra: dict[str, str] | None = None) -> dict[str, str]:
     return env
 
 
-async def stream_output(process: asyncio.subprocess.Process, name: str, color: str) -> None:
-    """Stream output from a process to stdout with a prefixed tag."""
+async def stream_output(
+    process: asyncio.subprocess.Process,
+    name: str,
+    color: str,
+    console: Console,
+) -> None:
+    """Stream output from a process to the provided console with a prefixed tag."""
     if process.stdout is None:
         return
 
@@ -61,8 +68,14 @@ async def stream_output(process: asyncio.subprocess.Process, name: str, color: s
         console.print(f"[red]Error reading stream from {name}: {e}[/red]")
 
 
-async def start_service(name: str, command: list[str], color: str, env: dict[str, str] | None = None) -> None:
-    """Start a service and stream its output."""
+async def start_service(
+    name: str,
+    command: list[str],
+    color: str,
+    env: dict[str, str] | None = None,
+    console: Console = stdout_console,
+) -> None:
+    """Start a service and stream its output to the chosen console."""
     console.print(f"[bold {color}]Starting {name}...[/bold {color}]")
 
     effective_env = env or build_process_env()
@@ -78,7 +91,7 @@ async def start_service(name: str, command: list[str], color: str, env: dict[str
         PROCESSES.append(process)
 
         # Start streaming output
-        await stream_output(process, name, color)
+        await stream_output(process, name, color, console)
 
         # If we get here, the process has exited
         code = await process.wait()
@@ -91,8 +104,43 @@ async def start_service(name: str, command: list[str], color: str, env: dict[str
         console.print(f"[bold red]Failed to start {name}: {e}[/bold red]")
 
 
+async def start_service_passthrough(
+    name: str,
+    command: list[str],
+    env: dict[str, str] | None = None,
+    console: Console = stderr_console,
+) -> None:
+    """Start a service inheriting parent stdio (for raw protocol streams)."""
+    console.print(f"[bold magenta]Starting {name} (stdio passthrough)...[/bold magenta]")
+
+    effective_env = env or build_process_env()
+
+    try:
+        process = await asyncio.create_subprocess_exec(
+            *command,
+            stdout=None,
+            stderr=None,
+            env=effective_env,
+            preexec_fn=os.setsid,
+        )
+        PROCESSES.append(process)
+
+        code = await process.wait()
+        if code != 0:
+            console.print(f"[bold red]{name} exited with code {code}[/bold red]")
+    except Exception as e:
+        console.print(f"[bold red]Failed to start {name}: {e}[/bold red]")
+
+
 async def run_stack(transport: str) -> None:
-    """Run the full stack."""
+    """Run the full stack.
+
+    When using stdio transport, stdout must remain clean for MCP protocol frames.
+    In that mode we stream service logs to stderr and let the MCP process inherit
+    raw stdio so no prefixing corrupts the stream.
+    """
+    info_console = stderr_console if transport == "stdio" else stdout_console
+
     # Check if Temporal is running
     temporal_running = False
     try:
@@ -101,35 +149,74 @@ async def run_stack(transport: str) -> None:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             if s.connect_ex(("localhost", 7233)) == 0:
                 temporal_running = True
-                console.print("[green]Temporal is already running.[/green]")
+                info_console.print("[green]Temporal is already running.[/green]")
     except Exception:
         pass
 
-    tasks = []
+    tasks: list[asyncio.Task[None]] = []
 
     # Start Temporal if needed
     if not temporal_running:
-        tasks.append(start_service("Temporal", ["temporal", "server", "start-dev", "--ip", "0.0.0.0"], "blue"))
+        tasks.append(
+            asyncio.create_task(
+                start_service(
+                    "Temporal",
+                    ["temporal", "server", "start-dev", "--ip", "0.0.0.0"],
+                    "blue",
+                    console=stderr_console if transport == "stdio" else stdout_console,
+                )
+            )
+        )
 
     # Start Worker
-    tasks.append(start_service("Worker", [sys.executable, "-m", "agentsflow.worker"], "yellow"))
-
-    # Start MCP Server
     tasks.append(
-        start_service(
-            "MCP",
-            [
-                "uv",
-                "run",
-                "fastmcp",
-                "run",
-                "agentsflow/mcp_server.py",
-                "--transport",
-                transport,
-            ],
-            "magenta",
+        asyncio.create_task(
+            start_service(
+                "Worker",
+                [sys.executable, "-m", "agentsflow.worker"],
+                "yellow",
+                console=stderr_console if transport == "stdio" else stdout_console,
+            )
         )
     )
+
+    # Start MCP Server
+    if transport == "stdio":
+        tasks.append(
+            asyncio.create_task(
+                start_service_passthrough(
+                    "MCP",
+                    [
+                        "uv",
+                        "run",
+                        "fastmcp",
+                        "run",
+                        "agentsflow/mcp_server.py",
+                        "--transport",
+                        transport,
+                    ],
+                    console=stderr_console,
+                )
+            )
+        )
+    else:
+        tasks.append(
+            asyncio.create_task(
+                start_service(
+                    "MCP",
+                    [
+                        "uv",
+                        "run",
+                        "fastmcp",
+                        "run",
+                        "agentsflow/mcp_server.py",
+                        "--transport",
+                        transport,
+                    ],
+                    "magenta",
+                )
+            )
+        )
 
     # Wait for all services
     await asyncio.gather(*tasks)
@@ -137,7 +224,7 @@ async def run_stack(transport: str) -> None:
 
 def handle_signal(sig: int, frame: Any) -> NoReturn:
     """Handle interrupt signals."""
-    console.print("\n[bold red]Stopping all services...[/bold red]")
+    ACTIVE_CONSOLE.print("\n[bold red]Stopping all services...[/bold red]")
     for p in PROCESSES:
         try:
             if p.returncode is None:
@@ -158,14 +245,23 @@ def handle_signal(sig: int, frame: Any) -> NoReturn:
 )
 def main(transport: str) -> None:
     """Start the AgentsFlow local development stack."""
+    global ACTIVE_CONSOLE
+    ACTIVE_CONSOLE = stderr_console if transport == "stdio" else stdout_console
+
     # Register signal handlers
     signal.signal(signal.SIGINT, handle_signal)
     signal.signal(signal.SIGTERM, handle_signal)
 
-    console.print(
+    ACTIVE_CONSOLE.print(
         "[bold blue]AgentsFlow Local Dev Launcher[/bold blue]\n"
         f"Streaming logs from all services using MCP transport '{transport}'. Press Ctrl+C to stop.\n"
     )
+
+    if transport == "stdio":
+        ACTIVE_CONSOLE.print(
+            "[yellow]Stdio transport selected: stdout is reserved for MCP protocol; "
+            "all service logs are sent to stderr.[/yellow]"
+        )
 
     try:
         asyncio.run(run_stack(transport=transport))
