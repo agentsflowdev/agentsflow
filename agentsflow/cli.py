@@ -161,7 +161,7 @@ async def _start_workflow_handle(
         repository=args.repository,
         reference=args.reference,
         issue_url=args.issue_url,
-        task_text=getattr(args, "task_text", None),
+        task_text=args.task_text,
         branch_name=args.branch_name,
         coding_agent_provider=args.coding_agent_provider,
     )
