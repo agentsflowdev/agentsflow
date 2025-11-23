@@ -2,9 +2,11 @@ import asyncio
 import os
 import signal
 import sys
+from pathlib import Path
 from typing import Any, NoReturn
 
 import click
+from dotenv import dotenv_values
 from rich.console import Console
 
 console = Console()
@@ -12,6 +14,34 @@ console = Console()
 # Global list to keep track of running processes for cleanup
 PROCESSES: list[asyncio.subprocess.Process] = []
 SUPPORTED_TRANSPORTS = ("stdio", "http", "sse", "streamable-http")
+
+
+def _load_dotenv(dotenv_path: Path = Path(".env")) -> dict[str, str]:
+    """Parse .env without mutating os.environ."""
+    if not dotenv_path.exists():
+        return {}
+
+    # Use python-dotenv to parse while avoiding automatic os.environ mutation.
+    parsed = dotenv_values(dotenv_path)
+    # Filter out None values (unset lines) and coerce to str for subprocess env.
+    return {k: str(v) for k, v in parsed.items() if v is not None}
+
+
+def build_process_env(extra: dict[str, str] | None = None) -> dict[str, str]:
+    """Return a safe env for subprocesses.
+
+    - Drop virtualenv markers that confuse `uv` inside worktrees
+      (VIRTUAL_ENV often points at the parent repo's .venv).
+    - Prime the environment with entries from .env so local dev
+      tooling (Temporal, API keys, etc.) stays consistent.
+    """
+    env = os.environ.copy()
+    env.pop("VIRTUAL_ENV", None)
+    env.pop("UV_ACTIVE_VIRTUALENV", None)
+    env.update(_load_dotenv())
+    if extra:
+        env.update(extra)
+    return env
 
 
 async def stream_output(process: asyncio.subprocess.Process, name: str, color: str) -> None:
@@ -35,12 +65,14 @@ async def start_service(name: str, command: list[str], color: str, env: dict[str
     """Start a service and stream its output."""
     console.print(f"[bold {color}]Starting {name}...[/bold {color}]")
 
+    effective_env = env or build_process_env()
+
     try:
         process = await asyncio.create_subprocess_exec(
             *command,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.STDOUT,
-            env=env or os.environ.copy(),
+            env=effective_env,
             preexec_fn=os.setsid,  # Create a new process group
         )
         PROCESSES.append(process)
