@@ -9,6 +9,11 @@ Quick start (MCP)
 -----------------
 The easiest way to run AgentsFlow is as an MCP server using `uvx` (part of [uv](https://github.com/astral-sh/uv)).
 
+Prerequisites
+-------------
+- `uvx` (install [uv](https://github.com/astral-sh/uv#installation) to get the `uvx` runner)
+- Temporal CLI/dev server (for the local Web UI at http://localhost:8233): https://docs.temporal.io/cli
+
 ### Option 1: Use with AI Assistant (Recommended)
 Run the following commands to add AgentsFlow as an MCP server.
 

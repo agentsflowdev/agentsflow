@@ -3,9 +3,10 @@
 Spin up the process workflow locally and run it end-to-end. The recommended way to run AgentsFlow is as an MCP server using `uvx`.
 
 ## Prerequisites
-- **uv**: Install via `curl -LsSf https://astral.sh/uv/install.sh | sh`
-- **Temporal**: The stack will automatically start a local Temporal dev server if port 7233 is free.
-- **Secrets**: `OPENAI_API_KEY` plus issue provider credentials (Jira or GitHub).
+
+- **uvx** (from [uv](https://github.com/astral-sh/uv#installation))
+- **Temporal CLI/dev server**: install and run via https://docs.temporal.io/cli (the stack will auto-start a local dev server if port 7233 is free)
+- **Secrets**: `OPENAI_API_KEY` plus issue provider credentials (Jira or GitHub)
 
 ## 1) Option 1: Use with AI Assistant (Recommended)
 
