@@ -62,6 +62,7 @@ Regardless of which option you choose, you can track workflow execution, history
 Once connected, you can use natural language to interact with the process workflow.
 
 **Example Prompts:**
+
 - "Start the process workflow for the current repository."
 - "Create a feature branch for issue JIRA-123."
 - "Kick off the workflow for this task: Fix 500 error when cookie is missing."
