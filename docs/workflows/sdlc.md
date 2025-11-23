@@ -4,19 +4,19 @@ The `sdlc_workflow` definition orchestrates the AgentsFlow automation pipeline a
 
 ## High-level flow
 ```mermaid
-flowchart TD
-  A[Start workflow] --> B[Create git worktree]
-  B --> C[Read issue (Jira/GitHub)]
-  C --> D[Clarification agent]
-  D -->|questions?| E[Wait for provide_clarification signal]
-  D -->|clear| F[Implementation loop]
-  E --> F
-  F --> G[Tests loop (if needed)]
-  G --> H[Review loop]
-  H --> I[Implementation/test summaries]
-  I --> J[Release plan]
-  J --> K[Commit & optional push]
-  K --> L[Close ACP sessions & return output]
+graph TD
+    A[Start workflow] --> B[Create git worktree]
+    B --> C[Read issue<br/>Jira/GitHub]
+    C --> D{Clarification<br/>agent}
+    D -->|Questions?| E[Wait for<br/>provide_clarification<br/>signal]
+    D -->|Clear| F[Implementation<br/>loop]
+    E --> F
+    F --> G[Tests loop<br/>if needed]
+    G --> H[Review loop]
+    H --> I[Implementation/<br/>test summaries]
+    I --> J[Release plan]
+    J --> K[Commit &<br/>optional push]
+    K --> L[Close ACP sessions<br/>& return output]
 ```
 
 ## Stage details
