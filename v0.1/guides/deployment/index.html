@@ -1362,10 +1362,12 @@
 <li>Trigger workflows from another shell via the CLI or MCP (see reference pages). Keep the worker running so activities stay registered.</li>
 </ol>
 <h2 id="docker-compose">Docker Compose<a class="headerlink" href="#docker-compose" title="Permanent link">&para;</a></h2>
-<p><code>docker compose up --build</code> starts three services:
-- <code>temporal</code> – Temporal dev server (ports 7233 gRPC / 8233 Web UI).
-- <code>worker</code> – AgentsFlow worker with hot-reloaded source mounted from the host.
-- <code>mcp-server</code> – FastMCP bridge exposing the same workflow.</p>
+<p><code>docker compose up --build</code> starts three services:</p>
+<ul>
+<li><code>temporal</code> – Temporal dev server (ports 7233 gRPC / 8233 Web UI).</li>
+<li><code>worker</code> – AgentsFlow worker with hot-reloaded source mounted from the host.</li>
+<li><code>mcp-server</code> – FastMCP bridge exposing the same workflow.</li>
+</ul>
 <p>Pass credentials from the host environment (as shown in <code>docker-compose.yml</code>). Rebuild when dependencies change: <code>docker compose build --pull</code>.</p>
 <h2 id="mcp-server">MCP server<a class="headerlink" href="#mcp-server" title="Permanent link">&para;</a></h2>
 <p>Run the FastMCP bridge against an existing Temporal cluster:
