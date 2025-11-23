@@ -1,63 +1,75 @@
 # Quickstart
 
-Spin up the SDLC workflow locally and run it end-to-end. These steps target new operators; see the deployment guide for containerised options.
+Spin up the SDLC workflow locally and run it end-to-end. The recommended way to run AgentsFlow is as an MCP server using `uvx`.
 
 ## Prerequisites
-- Python 3.12+, `uv`, and `git`
-- A Temporal cluster (the launcher below will start `temporal server start-dev` when port 7233 is free, or you can point at your own cluster)
-- Secrets: `OPENAI_API_KEY` plus issue provider credentials (choose Jira *or* GitHub below)
-- Access to the target repository path on the worker host
+- **uv**: Install via `curl -LsSf https://astral.sh/uv/install.sh | sh`
+- **Temporal**: The stack will automatically start a local Temporal dev server if port 7233 is free.
+- **Secrets**: `OPENAI_API_KEY` plus issue provider credentials (Jira or GitHub).
 
-## 1) Install dependencies
+## 1) Option 1: Use with AI Assistant (Recommended)
+
+To use AgentsFlow with your AI assistant, configure it as an MCP server.
+
+### Claude Code
 ```bash
-uv sync --extra dev
+claude mcp add agentsflow --scope user --env OPENAI_API_KEY=sk-... -- uvx agentsflow
 ```
 
-## 2) Configure environment
-Create a `.env` alongside the repository or export the variables directly. Set the common values first, then only configure the issue provider you use (Jira or GitHub)—you do not need credentials for both.
+### Gemini CLI
 ```bash
-OPENAI_API_KEY=sk-...
-TEMPORAL_ADDRESS=127.0.0.1:7233
-TEMPORAL_NAMESPACE=default
-SDLC_TASK_QUEUE=agentsflow-sdlc
-
-# Jira credentials (if using Jira)
-JIRA_EMAIL=you@example.com
-JIRA_API_TOKEN=atlassian-token
-
-# GitHub credentials (if using GitHub Issues)
-GITHUB_TOKEN=ghp_...
-```
-Set `AGENTSFLOW_LOG_LEVEL=DEBUG` if you want verbose logs, and use `ACP_AUTO_APPROVE=false` to require manual ACP confirmations.
-
-## 3) Launch the stack (recommended)
-Start everything—Temporal dev server, worker, and MCP server—with a single command and live logs:
-```bash
-python -m agentsflow.dev
-```
-By default it uses the `stdio` transport for MCP; override with `--transport http|sse|streamable-http` as needed. The launcher only starts Temporal if port 7233 is free; otherwise it reuses an existing cluster.
-
-### Manual start (only if you need it)
-- Start Temporal yourself: `temporal server start-dev` or `docker compose up temporal`
-- Then run the worker: `uv run python -m agentsflow.worker --task-queue agentsflow-sdlc`
-Keep the worker process running so activities stay registered.
-
-## 4) Trigger the workflow
-```bash
-uv run python -m agentsflow.cli \
-  --repository /path/to/repo \
-  --issue-url https://example.atlassian.net/browse/ABC-123 \
-  --json
-```
-Optional overrides: `--reference <branch|tag>`, `--model <chat-model>`, `--branch <target-branch>`, or `--coding-agent-provider claude|gemini|codex`. Each run auto-generates a workflow ID like `sdlc-1a2b3c4d`.
-
-## 5) Validate the install
-Run the existing tests to verify the environment and credentials:
-```bash
-uv run --extra dev pytest -k sdlc_workflow
+gemini mcp add agentsflow --scope user --env OPENAI_API_KEY=sk-... -- uvx agentsflow
 ```
 
-## Next steps
-- Deployment options: [Deployment](deployment.md)
-- Provider specifics: [Providers](providers.md)
-- Full workflow behaviour: [SDLC Workflow](../workflows/sdlc.md)
+### Codex CLI
+```bash
+codex mcp add agentsflow --env OPENAI_API_KEY=sk-... -- uvx agentsflow
+```
+
+### Cursor
+Add to `.cursor/mcp.json` or configure via **Settings > MCP**:
+
+```json
+{
+  "mcpServers": {
+    "agentsflow": {
+      "command": "uvx",
+      "args": ["agentsflow"],
+      "env": {
+        "OPENAI_API_KEY": "sk-..."
+      }
+    }
+  }
+}
+```
+
+## 2) Option 2: Standalone HTTP Server
+
+If you want to run the stack independently (e.g. for debugging or remote access via SSE/HTTP):
+
+```bash
+uvx agentsflow --transport streamable-http
+```
+
+## 3) Tracking Progress
+
+Regardless of which option you choose, you can track workflow execution, history, and status in the Temporal Web UI.
+- **URL**: http://localhost:8233
+- **Namespace**: `default`
+
+## 3) Using AgentsFlow
+
+Once connected, you can use natural language to interact with the SDLC workflow.
+
+**Example Prompts:**
+- "Start the SDLC workflow for the current repository."
+- "Create a feature branch for issue JIRA-123."
+- "Check the status of workflow `sdlc-1a2b3c`."
+
+## Manual Setup (Alternative)
+
+If you prefer to run from source or manage the process manually:
+
+1.  Clone the repository.
+2.  Install dependencies: `uv sync --extra dev`.
+3.  Run the dev stack: `python -m agentsflow.dev`.

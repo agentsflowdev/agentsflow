@@ -5,12 +5,56 @@ AgentsFlow
 
 Temporal workflows and activities for the AgentsFlow SDLC automation stack. This README is intentionally thin—full operator and contributor docs live at [docs.agentsflow.dev](https://docs.agentsflow.dev). New operators can jump straight to the Quickstart/Deployment guides on the docs site.
 
-Quick start (local stack)
--------------------------
+Quick start (MCP)
+-----------------
+The easiest way to run AgentsFlow is as an MCP server using `uvx` (part of [uv](https://github.com/astral-sh/uv)).
+
+### Option 1: Use with AI Assistant (Recommended)
+Run the following commands to add AgentsFlow as an MCP server.
+
+**Claude Code**
 ```bash
-python -m agentsflow.dev
+claude mcp add agentsflow --scope user --env OPENAI_API_KEY=sk-... -- uvx agentsflow
 ```
-This launches Temporal dev (if port 7233 is free), the AgentsFlow worker, and the MCP server with `stdio` transport. Set your `.env` first (`OPENAI_API_KEY`, Jira or GitHub creds) and pass `--transport http|sse|streamable-http` if you prefer a different MCP transport. Keep the process running while you trigger workflows via the CLI or MCP.
+
+**Gemini CLI**
+```bash
+gemini mcp add agentsflow --scope user --env OPENAI_API_KEY=sk-... -- uvx agentsflow
+```
+
+**Codex CLI**
+```bash
+codex mcp add agentsflow --env OPENAI_API_KEY=sk-... -- uvx agentsflow
+```
+
+**Cursor** (`.cursor/mcp.json` or via Settings > MCP)
+```json
+{
+  "mcpServers": {
+    "agentsflow": {
+      "command": "uvx",
+      "args": ["agentsflow"],
+      "env": {
+        "OPENAI_API_KEY": "sk-..."
+      }
+    }
+  }
+}
+```
+
+### Option 2: Standalone HTTP Server
+To run the stack independently (e.g. for debugging or remote access):
+```bash
+uvx agentsflow --transport streamable-http
+```
+
+### Tracking Progress
+Regardless of how you run AgentsFlow (Option 1 or 2), you can track workflow execution and status in the Temporal Web UI at http://localhost:8233.
+
+### 3. Use it
+Once connected, you can use natural language to trigger workflows:
+- "Create a feature branch for issue JIRA-123"
+- "Start the SDLC workflow for the current repository"
 
 Architecture (high level)
 -------------------------
