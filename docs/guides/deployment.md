@@ -12,7 +12,9 @@ Choose between local processes, Docker Compose, or the MCP server. All options r
 4. Trigger workflows from another shell via the CLI or MCP (see reference pages). Keep the worker running so activities stay registered.
 
 ## Docker Compose
+
 `docker compose up --build` starts three services:
+
 - `temporal` – Temporal dev server (ports 7233 gRPC / 8233 Web UI).
 - `worker` – AgentsFlow worker with hot-reloaded source mounted from the host.
 - `mcp-server` – FastMCP bridge exposing the same workflow.

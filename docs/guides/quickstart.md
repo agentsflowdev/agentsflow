@@ -3,9 +3,10 @@
 Spin up the process workflow locally and run it end-to-end. The recommended way to run AgentsFlow is as an MCP server using `uvx`.
 
 ## Prerequisites
-- **uv**: Install via `curl -LsSf https://astral.sh/uv/install.sh | sh`
-- **Temporal**: The stack will automatically start a local Temporal dev server if port 7233 is free.
-- **Secrets**: `OPENAI_API_KEY` plus issue provider credentials (Jira or GitHub).
+
+- **uvx** (from [uv](https://github.com/astral-sh/uv#installation))
+- **Temporal CLI/dev server**: install and run via https://docs.temporal.io/cli (the stack will auto-start a local dev server if port 7233 is free)
+- **Secrets**: `OPENAI_API_KEY` plus issue provider credentials (Jira or GitHub)
 
 ## 1) Option 1: Use with AI Assistant (Recommended)
 
@@ -54,6 +55,7 @@ uvx agentsflow --transport streamable-http
 ## 3) Tracking Progress
 
 Regardless of which option you choose, you can track workflow execution, history, and status in the Temporal Web UI.
+
 - **URL**: http://localhost:8233
 - **Namespace**: `default`
 
@@ -62,9 +64,13 @@ Regardless of which option you choose, you can track workflow execution, history
 Once connected, you can use natural language to interact with the process workflow.
 
 **Example Prompts:**
+
 - "Start the process workflow for the current repository."
 - "Create a feature branch for issue JIRA-123."
+- "Kick off the workflow for this task: Fix 500 error when cookie is missing."
 - "Check the status of workflow `process-1a2b3c`."
+
+You can supply either an issue URL or a free-text task when calling `start_process_workflow`, but not both.
 
 ## Manual Setup (Alternative)
 

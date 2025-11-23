@@ -37,6 +37,7 @@ class CLISettings(BaseSettings):
     repository: str | None = None
     reference: str | None = None
     issue_url: str | None = None
+    task_text: str | None = None
     address: str = Field(default="127.0.0.1:7233", alias="TEMPORAL_ADDRESS")
     namespace: str = Field(default="default", alias="TEMPORAL_NAMESPACE")
     task_queue: str = Field(default="process-workflow", alias="PROCESS_TASK_QUEUE")
@@ -63,12 +64,20 @@ def _parse_args(argv: list[str], defaults: CLISettings) -> argparse.Namespace:
         required=defaults.repository is None,
         help="Local path or remote URL to the git repository.",
     )
-    parser.add_argument(
+    source_group = parser.add_mutually_exclusive_group(
+        required=defaults.issue_url is None and defaults.task_text is None
+    )
+    source_group.add_argument(
         "--issue-url",
         dest="issue_url",
         default=defaults.issue_url,
-        required=defaults.issue_url is None,
         help="URL of the issue to process.",
+    )
+    source_group.add_argument(
+        "--task-text",
+        dest="task_text",
+        default=defaults.task_text,
+        help="Free-text task description when no issue URL is available.",
     )
     parser.add_argument(
         "--reference",
@@ -152,6 +161,7 @@ async def _start_workflow_handle(
         repository=args.repository,
         reference=args.reference,
         issue_url=args.issue_url,
+        task_text=args.task_text,
         branch_name=args.branch_name,
         coding_agent_provider=args.coding_agent_provider,
     )

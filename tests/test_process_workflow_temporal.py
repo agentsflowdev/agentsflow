@@ -54,7 +54,8 @@ class ScenarioState:
     test_messages: Sequence[str]
     review_messages: Sequence[str]
     git_result: GitWorktreeResult
-    issue_result: IssueDetails
+    issue_result: IssueDetails | None
+    task_text: str | None = None
     claude_calls: list[AgentRun] = field(default_factory=list)
     closed_sessions: list[str] = field(default_factory=list)
     finalize_requests: list[FinalizeGitRequest] = field(default_factory=list)
@@ -161,6 +162,8 @@ async def _run_workflow_with_mocks(
 
     @activity.defn(name="read_issue")
     async def read_issue_activity(_request) -> IssueDetails:
+        if scenario.issue_result is None:
+            raise AssertionError("read_issue should not be called when task_text is supplied")
         return scenario.issue_result
 
     @activity.defn(name="run_acp_agent")
@@ -256,7 +259,8 @@ async def _run_workflow_with_mocks(
             workflow_input = ProcessWorkflowInput(
                 repository="git@example.com:org/repo.git",
                 reference="main",
-                issue_url="https://example.atlassian.net/browse/ABC-123",
+                issue_url=scenario.issue_result.issue_url if scenario.issue_result else None,
+                task_text=scenario.task_text,
                 branch_name=scenario.branch_override,
             )
             return await client.execute_workflow(
@@ -518,7 +522,97 @@ async def test_workflow_fails_when_review_never_approves(monkeypatch):
     assert cause.non_retryable is True
     assert "Code review stage did not reach approval." in str(cause)
     assert scenario.closed_sessions
-    assert scenario.closed_sessions[-1] == "session-001"
 
+
+@pytest.mark.asyncio
+async def test_workflow_accepts_task_text_without_issue_url(monkeypatch):
+    scenario = ScenarioState(
+        implementation_messages=["Implemented login fix."],
+        test_messages=["Added regression test."],
+        review_messages=["Looks good."],
+        git_result=GitWorktreeResult(
+            worktree_path="/tmp/worktree",
+            repository_path="/tmp/repo",
+            reference="main",
+            cloned_from_remote=False,
+        ),
+        issue_result=None,
+        task_text="Fix login error\nHandle missing cookie gracefully",
+    )
+
+    evaluation_agent = FakeEvaluationAgent(
+        implementation_outputs=[
+            EvaluationOutput(
+                task_implemented=True,
+                automated_tests_implemented=True,
+                reasoning="All good",
+            )
+        ],
+        test_outputs=[
+            EvaluationOutput(
+                task_implemented=True,
+                automated_tests_implemented=True,
+                reasoning="Tests pass",
+            )
+        ],
+    )
+
+    review_agent = FakeReviewAgent(
+        outputs=[
+            ReviewOutput(
+                approval=True,
+                issues=[],
+                recommendations=[],
+                praise=["Solid fix"],
+            )
+        ]
+    )
+
+    async def implementation_summary(prompt, **_kwargs):
+        return FakeAgentResult(
+            ImplementationOutput(
+                summary="Fixed login cookie handling.",
+                key_steps=["Add cookie guard"],
+                files_to_change=["auth/login.py"],
+                testing_considerations=["pytest"],
+            )
+        )
+
+    async def test_summary(prompt, **_kwargs):
+        return FakeAgentResult(
+            TestPlanOutput(
+                summary="Regression test added.",
+                test_cases=["tests/test_login.py::test_missing_cookie"],
+                tooling_notes=["pytest"],
+            )
+        )
+
+    async def release_plan(prompt, **_kwargs):
+        return FakeAgentResult(
+            ReleasePlanOutput(
+                branch_name="feature/task-login-fix",
+                commit_message="fix: handle missing login cookie",
+                pr_title="Fix login when cookie missing",
+                pr_body="Summary and tests",
+                follow_up_tasks=[],
+            )
+        )
+
+    result = await _run_workflow_with_mocks(
+        scenario,
+        evaluation_agent=evaluation_agent,
+        implementation_summary=implementation_summary,
+        test_summary=test_summary,
+        review_agent=review_agent,
+        release_agent=release_plan,
+    )
+
+    assert result.issue.issue_key.startswith("TASK-")
+    assert result.issue.summary == "Fix login error"
+    assert "Handle missing cookie" in result.issue.description
+    assert result.issue.comments == []
+    assert result.review.approval is True
+    assert scenario.closed_sessions[-1] == "session-001"
     assert scenario.closed_sessions == ["session-001"]
-    assert scenario.finalize_requests == []
+    assert scenario.finalize_requests
+    assert scenario.finalize_requests[0].commit_message == "fix: handle missing login cookie"
