@@ -11,6 +11,7 @@ Temporal activities live in `agentsflow/activities/` (git worktree, issue ingest
 - `python -m agentsflow.worker` – start the Temporal worker; reads `.env` for `TEMPORAL_ADDRESS`, `PROCESS_TASK_QUEUE`, credentials.
 - `python -m agentsflow.cli --issue-url … --repository … --json` – kick off the process workflow locally with optional overrides.
 - `uv run fastmcp run agentsflow/mcp_server.py` – expose the same workflow over MCP for agent clients.
+- `pre-commit install && pre-commit install --hook-type commit-msg` – enable lint hooks plus Commitizen commit message checks (conventional commits).
 
 ## Coding Style & Naming Conventions
 Stick to PEP 8, four-space indentation, and type hints on every public function. Keep orchestration lightweight in `agentsflow/activities/__init__.py`; push filesystem or API logic into dedicated modules and return typed dataclasses (`GitWorktreeResult`). Use snake_case for callables, PascalCase for models, ALL_CAPS for env vars, and structured `activity.logger` messages.
