@@ -91,5 +91,5 @@ Supported issue providers
 Docs
 ----
 - New operators: Quickstart + deployment: https://docs.agentsflow.dev
-- Process workflow: https://docs.agentsflow.dev/workflows/process
-- Providers + env reference: https://docs.agentsflow.dev/guides/providers
+- Process workflow: https://docs.agentsflow.dev/latest/workflows/process/
+- Providers + env reference: https://docs.agentsflow.dev/latest/guides/providers/
