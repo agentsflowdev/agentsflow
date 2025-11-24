@@ -722,18 +722,20 @@ def _render_coding_prompt(
             base.append(
                 "Re-review the workspace focusing on prior feedback. For each feedback item, state whether it is now "
                 "resolved; do not re-raise resolved items. Highlight any new blockers or regressions observed while "
-                "verifying fixes. Do not make code changes unless strictly required to inspect. Run relevant automated "
-                "test or lint commands and list each command with exit status (or why it could not run). For every "
-                "issue or recommendation, cite the specific file/behavior involved and tag severity (issue = "
-                "blocking, recommendation = non-blocking)."
+                "verifying fixes. Scope your review to files/changes present in this workspace—do not audit unrelated "
+                "areas. Do not make code changes unless strictly required to inspect. Run relevant automated test or "
+                "lint commands and list each command with exit status (or why it could not run). For every issue or "
+                "recommendation, cite the specific file/behavior involved and tag severity (issue = blocking, "
+                "recommendation = non-blocking)."
             )
         else:
             base.append(
                 "Perform a thorough code review of the current workspace. Highlight blockers, risks, and suggested "
-                "improvements. Do not make code changes unless strictly required to inspect. Run relevant automated "
-                "test or lint commands and list each command with exit status (or why it could not run). For every "
-                "issue or recommendation, cite the specific file/behavior involved and tag severity (issue = "
-                "blocking, recommendation = non-blocking)."
+                "improvements. Scope your review to files/changes present in this workspace—do not audit unrelated "
+                "areas. Do not make code changes unless strictly required to inspect. Run relevant automated test or "
+                "lint commands and list each command with exit status (or why it could not run). For every issue or "
+                "recommendation, cite the specific file/behavior involved and tag severity (issue = blocking, "
+                "recommendation = non-blocking)."
             )
     if stage == "implementation" or stage == "tests":
         base.append(
