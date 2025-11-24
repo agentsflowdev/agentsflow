@@ -6,21 +6,19 @@ import argparse
 import asyncio
 import contextlib
 import json
-import os
 import sys
-import uuid
 from typing import Any
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from temporalio.client import Client, WorkflowHandle
-from temporalio.contrib.pydantic import pydantic_data_converter
+from temporalio.client import WorkflowHandle
 
 from agentsflow.logging_utils import (
     DEFAULT_LOG_LEVEL,
     configure_logging,
 )
-from agentsflow.workflows import ProcessWorkflow, ProcessWorkflowInput, ProcessWorkflowOutput
+from agentsflow.workflow_client import _start_workflow_handle
+from agentsflow.workflows import ProcessWorkflowOutput
 
 STATUS_POLL_INTERVAL_SECONDS = 2
 
@@ -131,65 +129,6 @@ def _parse_args(argv: list[str], defaults: CLISettings) -> argparse.Namespace:
         help="Disable JSON output even if PROCESS_JSON_OUTPUT is set.",
     )
     return parser.parse_args(argv)
-
-
-def _generate_workflow_id() -> str:
-    return f"process-{uuid.uuid4().hex[:8]}"
-
-
-async def _create_temporal_client(address: str, namespace: str) -> Client:
-    """Create a Temporal client with the standard AgentsFlow configuration."""
-
-    return await Client.connect(
-        address,
-        namespace=namespace,
-        data_converter=pydantic_data_converter,
-    )
-
-
-async def _start_workflow_handle(
-    args: argparse.Namespace,
-) -> WorkflowHandle[ProcessWorkflowOutput, Any]:
-    """Start the process workflow and return the Temporal workflow handle."""
-
-    client = await _create_temporal_client(args.address, args.namespace)
-
-    if args.model:
-        os.environ["PROCESS_AGENT_MODEL"] = args.model
-
-    input_payload = ProcessWorkflowInput(
-        repository=args.repository,
-        reference=args.reference,
-        issue_url=args.issue_url,
-        task_text=args.task_text,
-        branch_name=args.branch_name,
-        coding_agent_provider=args.coding_agent_provider,
-    )
-
-    return await client.start_workflow(  # type: ignore[no-any-return]
-        ProcessWorkflow.run,
-        input_payload,
-        id=_generate_workflow_id(),
-        task_queue=args.task_queue,
-    )  # type: ignore[call-overload]
-
-
-async def _await_workflow_result(
-    address: str,
-    namespace: str,
-    workflow_id: str,
-    *,
-    run_id: str | None = None,
-) -> ProcessWorkflowOutput:
-    """Await the result for an existing workflow execution."""
-
-    client = await _create_temporal_client(address, namespace)
-    handle: WorkflowHandle[ProcessWorkflowOutput, Any] = client.get_workflow_handle(
-        workflow_id,
-        run_id=run_id,
-        result_type=ProcessWorkflowOutput,
-    )
-    return await _wait_for_completion(handle)
 
 
 async def _run_workflow(args: argparse.Namespace) -> ProcessWorkflowOutput:

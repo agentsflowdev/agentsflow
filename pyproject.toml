@@ -17,6 +17,7 @@ dependencies = [
     "python-dotenv>=1.0.1",
     "click>=8.1.7",
     "rich>=13.7.0",
+    "aiostream>=0.5.2",
 ]
 
 [project.scripts]

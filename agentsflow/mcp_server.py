@@ -7,14 +7,9 @@ from typing import Any
 
 from fastmcp import Context, FastMCP
 
-from agentsflow.cli import (
-    ClarificationPending,
-    CLISettings,
-    _await_workflow_result,
-    _create_temporal_client,
-    _start_workflow_handle,
-)
+from agentsflow.cli import CLISettings
 from agentsflow.logging_utils import configure_logging
+from agentsflow.workflow_client import _await_first_change, _create_temporal_client, _start_workflow_handle
 
 configure_logging(CLISettings().log_level)
 
@@ -23,7 +18,7 @@ mcp = FastMCP(
     instructions=(
         "This MCP server exposes the automation workflow. Start it with "
         "start_agentsflow_process (issue_url or task_text + repository_path) to receive the workflow_id/run_id, then "
-        "call await_agentsflow_result with the workflow_id when you're ready to fetch the workflow output. "
+        "call await_agentsflow_result with the workflow_ids list to get the first completion or clarification event. "
         "If a run pauses for clarifications, answer them via provide_agentsflow_clarification before waiting again. "
         "The repository_path argument must be the absolute filesystem path to the repo root "
         "(e.g., /Users/acme/src/app). "
@@ -91,29 +86,11 @@ async def _start_workflow_tool_impl(
     }
 
     if remind_about_result:
-        await ctx.info("Workflow started. Call await_agentsflow_result with the workflow_id to fetch the output.")
+        await ctx.info(
+            "Workflow started. Call await_agentsflow_result with one or more workflow_ids to fetch the first change."
+        )
 
     return payload
-
-
-async def _await_workflow_tool_impl(
-    *,
-    workflow_id: str,
-    ctx: Context,
-) -> dict[str, Any]:
-    defaults = CLISettings()
-    await ctx.info(f"Waiting for workflow {workflow_id} (latest run) to finish.")
-    try:
-        result = await _await_workflow_result(
-            defaults.address,
-            defaults.namespace,
-            workflow_id,
-        )
-    except ClarificationPending as pending:
-        await ctx.info("Workflow paused waiting for clarification.")
-        return pending.payload
-    await ctx.info("Workflow completed successfully.")
-    return result.model_dump()
 
 
 @mcp.tool
@@ -158,16 +135,26 @@ async def start_agentsflow_process(
 
 @mcp.tool
 async def await_agentsflow_result(
-    workflow_id: str,
+    workflow_ids: list[str],
     *,
     ctx: Context,
 ) -> dict[str, Any]:
-    """Wait for the specified workflow execution to finish and return the result."""
+    """Return the first completion/clarification across the provided workflow_ids."""
 
-    return await _await_workflow_tool_impl(
-        workflow_id=workflow_id,
-        ctx=ctx,
+    defaults = CLISettings()
+    await ctx.info(f"Waiting for first change across {len(workflow_ids)} workflow(s).")
+    event = await _await_first_change(
+        defaults.address,
+        defaults.namespace,
+        workflow_ids,
     )
+    await ctx.info(
+        f"Workflow {event['workflow_id']} reported {event['kind']}.",
+    )
+    if event.get("result"):
+        # pydantic models -> dict for MCP transport
+        event["result"] = event["result"].model_dump()
+    return event
 
 
 if __name__ == "__main__":  # pragma: no cover - manual execution helper

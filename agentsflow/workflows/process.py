@@ -38,6 +38,8 @@ MAX_TEST_ATTEMPTS = 5
 MAX_REVIEW_ATTEMPTS = 5
 ACP_ACTIVITY_TIMEOUT_ENV = "PROCESS_ACP_ACTIVITY_TIMEOUT_MINUTES"
 DEFAULT_ACP_ACTIVITY_TIMEOUT_MINUTES = 60
+CLARIFICATION_MARKER = "clarification_required"
+CLARIFICATION_SEARCH_ATTRIBUTE = "ClarificationRequired"
 
 
 def _acp_activity_timeout() -> timedelta:
@@ -124,6 +126,11 @@ class ProcessWorkflow:
         self._clarification_assumptions: list[str] = []
         self._workflow_completed = False
         self._task_payload: IssuePayload | None = None
+
+    @workflow.signal
+    async def clarification_requested(self, payload: dict[str, Any]) -> None:  # pragma: no cover - notification only
+        # Notification-only signal; state is handled where it originates.
+        return None
 
     @workflow.signal
     async def provide_clarification(
@@ -215,6 +222,10 @@ class ProcessWorkflow:
             )
             self._clarification_state = clarification
             self._clarification_resolved = False
+            # Emit a self-signal so history reflects the clarification event without polling.
+            info = workflow.info()
+            self_handle = workflow.get_external_workflow_handle(info.workflow_id, run_id=info.run_id)
+            await self_handle.signal("clarification_requested", clarification.model_dump())
             question_notes = [
                 f"Clarification question: {question}" for question in clarification.open_questions if question
             ]
