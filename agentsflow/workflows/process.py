@@ -718,13 +718,23 @@ def _render_coding_prompt(
             "looks correct before acting."
         )
     else:  # review
-        base.append(
-            "Perform a thorough code review of the changes made in the current workspace. Highlight blockers, risks,"
-            "and suggested improvements. Do not make code changes unless strictly required to inspect. Run relevant "
-            "automated test or lint commands and list each command with exit status (or why it could not run). For "
-            "every issue or recommendation, cite the specific file/behavior involved and tag severity (issue = "
-            "blocking, recommendation = non-blocking)."
-        )
+        if feedback:
+            base.append(
+                "Re-review the workspace focusing on prior feedback. For each feedback item, state whether it is now "
+                "resolved; do not re-raise resolved items. Highlight any new blockers or regressions observed while "
+                "verifying fixes. Do not make code changes unless strictly required to inspect. Run relevant automated "
+                "test or lint commands and list each command with exit status (or why it could not run). For every "
+                "issue or recommendation, cite the specific file/behavior involved and tag severity (issue = "
+                "blocking, recommendation = non-blocking)."
+            )
+        else:
+            base.append(
+                "Perform a thorough code review of the current workspace. Highlight blockers, risks, and suggested "
+                "improvements. Do not make code changes unless strictly required to inspect. Run relevant automated "
+                "test or lint commands and list each command with exit status (or why it could not run). For every "
+                "issue or recommendation, cite the specific file/behavior involved and tag severity (issue = "
+                "blocking, recommendation = non-blocking)."
+            )
     if stage == "implementation" or stage == "tests":
         base.append(
             "Before you conclude, output a bulleted change log where each bullet is 'path -> intent -> outcome "
