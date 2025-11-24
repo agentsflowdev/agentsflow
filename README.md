@@ -13,23 +13,24 @@ Prerequisites
 -------------
 - `uvx` (install [uv](https://github.com/astral-sh/uv#installation) to get the `uvx` runner)
 - Temporal CLI/dev server (for the local Web UI at http://localhost:8233): https://docs.temporal.io/cli
+- One coding agent CLI: **Claude Code**, **Codex CLI**, or **Gemini CLI** (pick whichever assistant you use)
 
 ### Option 1: Use with AI Assistant (Recommended)
 Run the following commands to add AgentsFlow as an MCP server.
 
 **Claude Code**
 ```bash
-claude mcp add agentsflow --scope user --env OPENAI_API_KEY=sk-... -- uvx agentsflow
+claude mcp add agentsflow --scope user --env OPENAI_API_KEY=sk-... --env PROCESS_CODING_AGENT_PROVIDER=claude -- uvx agentsflow
 ```
 
 **Gemini CLI**
 ```bash
-gemini mcp add agentsflow --scope user --env OPENAI_API_KEY=sk-... -- uvx agentsflow
+gemini mcp add agentsflow --scope user --env OPENAI_API_KEY=sk-... --env PROCESS_CODING_AGENT_PROVIDER=gemini -- uvx agentsflow
 ```
 
 **Codex CLI**
 ```bash
-codex mcp add agentsflow --env OPENAI_API_KEY=sk-... -- uvx agentsflow
+codex mcp add agentsflow --env OPENAI_API_KEY=sk-... --env PROCESS_CODING_AGENT_PROVIDER=codex -- uvx agentsflow
 ```
 
 **Cursor** (`.cursor/mcp.json` or via Settings > MCP)
@@ -40,12 +41,15 @@ codex mcp add agentsflow --env OPENAI_API_KEY=sk-... -- uvx agentsflow
       "command": "uvx",
       "args": ["agentsflow"],
       "env": {
-        "OPENAI_API_KEY": "sk-..."
+        "OPENAI_API_KEY": "sk-...",
+        "PROCESS_CODING_AGENT_PROVIDER": "codex"
       }
     }
   }
 }
 ```
+
+`PROCESS_CODING_AGENT_PROVIDER` lets you choose which coding agent (claude / codex / gemini) AgentsFlow will route coding actions to.
 
 ### Option 2: Standalone HTTP Server
 To run the stack independently (e.g. for debugging or remote access):
