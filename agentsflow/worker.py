@@ -21,7 +21,7 @@ from agentsflow.workflows import ProcessWorkflow
 
 
 class WorkerSettings(BaseSettings):
-    """Settings for the Temporal worker, sourced from environment or .env."""
+    """Settings for the Temporal worker, sourced from environment variables."""
 
     address: str = Field(default="127.0.0.1:7233", alias="TEMPORAL_ADDRESS")
     namespace: str = Field(default="default", alias="TEMPORAL_NAMESPACE")
@@ -30,8 +30,6 @@ class WorkerSettings(BaseSettings):
     log_level: str = Field(default=DEFAULT_LOG_LEVEL, alias="AGENTSFLOW_LOG_LEVEL")
 
     model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
         populate_by_name=True,
         extra="ignore",
     )

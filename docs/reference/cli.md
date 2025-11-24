@@ -3,7 +3,7 @@
 ## CLI (`python -m agentsflow.cli`)
 - Required inputs: `--repository` (path or git URL) and `--issue-url`.
 - Connection flags: `--address` (`TEMPORAL_ADDRESS`), `--namespace` (`TEMPORAL_NAMESPACE`), `--task-queue` (`PROCESS_TASK_QUEUE`).
-- Workflow controls: `--reference`, `--coding-agent-provider {claude,gemini,codex}`, `--model` (`PROCESS_AGENT_MODEL`), `--branch`.
+- Workflow controls: `--reference`, `--coding-agent-provider {claude,gemini,codex}`, `--branch`.
 - Output: `--json` / `--no-json` (defaults to `PROCESS_JSON_OUTPUT`); prints the `ProcessWorkflowOutput` payload on success.
 - Exit codes: `0` success, `2` clarification required (payload printed), `1` error, `130` interrupted.
 - Workflow IDs are generated automatically as `process-<8 hex>` unless you wrap the CLI yourself.

@@ -6,7 +6,6 @@ from pathlib import Path
 from typing import Any, NoReturn
 
 import click
-from dotenv import dotenv_values
 from rich.console import Console
 
 stdout_console = Console(file=sys.stdout)
@@ -22,29 +21,15 @@ PROCESSES: list[asyncio.subprocess.Process] = []
 SUPPORTED_TRANSPORTS = ("stdio", "http", "sse", "streamable-http")
 
 
-def _load_dotenv(dotenv_path: Path = Path(".env")) -> dict[str, str]:
-    """Parse .env without mutating os.environ."""
-    if not dotenv_path.exists():
-        return {}
-
-    # Use python-dotenv to parse while avoiding automatic os.environ mutation.
-    parsed = dotenv_values(dotenv_path)
-    # Filter out None values (unset lines) and coerce to str for subprocess env.
-    return {k: str(v) for k, v in parsed.items() if v is not None}
-
-
 def build_process_env(extra: dict[str, str] | None = None) -> dict[str, str]:
     """Return a safe env for subprocesses.
 
     - Drop virtualenv markers that confuse `uv` inside worktrees
       (VIRTUAL_ENV often points at the parent repo's .venv).
-    - Prime the environment with entries from .env so local dev
-      tooling (Temporal, API keys, etc.) stays consistent.
     """
     env = os.environ.copy()
     env.pop("VIRTUAL_ENV", None)
     env.pop("UV_ACTIVE_VIRTUALENV", None)
-    env.update(_load_dotenv())
     if extra:
         env.update(extra)
     return env
@@ -255,6 +240,7 @@ def main(transport: str) -> None:
     # Register signal handlers
     signal.signal(signal.SIGINT, handle_signal)
     signal.signal(signal.SIGTERM, handle_signal)
+    signal.signal(signal.SIGHUP, handle_signal)
 
     ACTIVE_CONSOLE.print(
         "[bold blue]AgentsFlow Local Dev Launcher[/bold blue]\n"

@@ -1,6 +1,6 @@
 # Environment Variables
 
-AgentsFlow entry points load configuration from environment variables and `.env` files (via Pydantic settings). Defaults are chosen for local development; production deployments should supply explicit values.
+AgentsFlow entry points load configuration from environment variables. If you prefer `.env` files, load them yourself (e.g., `direnv`, `uv run --env-file`, or your process manager) before starting the CLI, MCP server, or worker. Defaults are chosen for local development; production deployments should supply explicit values.
 
 ## Temporal connection & workflow routing
 - `TEMPORAL_ADDRESS` (default `127.0.0.1:7233`) – Temporal frontend address for CLI, worker, and MCP.
@@ -29,4 +29,4 @@ AgentsFlow entry points load configuration from environment variables and `.env`
 ## Logging & diagnostics
 - `AGENTSFLOW_LOG_LEVEL` (default `INFO`) – Controls verbosity for CLI, worker, and MCP logs.
 
-Store secrets outside version control and prefer `.env` only for local development.
+Store secrets outside version control; if you keep a local `.env`, ensure it is never committed and is loaded by your shell/process manager before running AgentsFlow.

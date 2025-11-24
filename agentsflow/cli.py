@@ -4,55 +4,18 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import contextlib
 import json
-import os
 import sys
-import uuid
 from typing import Any
 
-from pydantic import Field
-from pydantic_settings import BaseSettings, SettingsConfigDict
-from temporalio.client import Client, WorkflowHandle
-from temporalio.contrib.pydantic import pydantic_data_converter
-
-from agentsflow.logging_utils import (
-    DEFAULT_LOG_LEVEL,
-    configure_logging,
+from agentsflow.logging_utils import configure_logging
+from agentsflow.settings import CLISettings
+from agentsflow.workflow_client import (
+    ClarificationPending,
+    start_process_workflow,
+    wait_for_completion,
 )
-from agentsflow.workflows import ProcessWorkflow, ProcessWorkflowInput, ProcessWorkflowOutput
-
-STATUS_POLL_INTERVAL_SECONDS = 2
-
-
-class ClarificationPending(Exception):
-    def __init__(self, payload: dict[str, Any]) -> None:
-        super().__init__("clarification_required")
-        self.payload = payload
-
-
-class CLISettings(BaseSettings):
-    """Settings source for CLI defaults populated from environment or .env files."""
-
-    repository: str | None = None
-    reference: str | None = None
-    issue_url: str | None = None
-    task_text: str | None = None
-    address: str = Field(default="127.0.0.1:7233", alias="TEMPORAL_ADDRESS")
-    namespace: str = Field(default="default", alias="TEMPORAL_NAMESPACE")
-    task_queue: str = Field(default="process-workflow", alias="PROCESS_TASK_QUEUE")
-    coding_agent_provider: str = Field(default="claude", alias="PROCESS_CODING_AGENT_PROVIDER")
-    model: str | None = Field(default=None, alias="PROCESS_AGENT_MODEL")
-    branch_name: str | None = None
-    json_output: bool = Field(default=False, alias="PROCESS_JSON_OUTPUT")
-    log_level: str = Field(default=DEFAULT_LOG_LEVEL, alias="AGENTSFLOW_LOG_LEVEL")
-
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        populate_by_name=True,
-        extra="ignore",
-    )
+from agentsflow.workflows import ProcessWorkflowOutput
 
 
 def _parse_args(argv: list[str], defaults: CLISettings) -> argparse.Namespace:
@@ -107,11 +70,6 @@ def _parse_args(argv: list[str], defaults: CLISettings) -> argparse.Namespace:
         help="Coding agent provider to use (env: PROCESS_CODING_AGENT_PROVIDER).",
     )
     parser.add_argument(
-        "--model",
-        default=defaults.model,
-        help="Override chat model used by the process agents (env: PROCESS_AGENT_MODEL).",
-    )
-    parser.add_argument(
         "--branch",
         dest="branch_name",
         default=defaults.branch_name,
@@ -133,31 +91,11 @@ def _parse_args(argv: list[str], defaults: CLISettings) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def _generate_workflow_id() -> str:
-    return f"process-{uuid.uuid4().hex[:8]}"
-
-
-async def _create_temporal_client(address: str, namespace: str) -> Client:
-    """Create a Temporal client with the standard AgentsFlow configuration."""
-
-    return await Client.connect(
-        address,
-        namespace=namespace,
-        data_converter=pydantic_data_converter,
-    )
-
-
-async def _start_workflow_handle(
-    args: argparse.Namespace,
-) -> WorkflowHandle[ProcessWorkflowOutput, Any]:
-    """Start the process workflow and return the Temporal workflow handle."""
-
-    client = await _create_temporal_client(args.address, args.namespace)
-
-    if args.model:
-        os.environ["PROCESS_AGENT_MODEL"] = args.model
-
-    input_payload = ProcessWorkflowInput(
+async def _run_workflow(args: argparse.Namespace) -> ProcessWorkflowOutput:
+    handle = await start_process_workflow(
+        address=args.address,
+        namespace=args.namespace,
+        task_queue=args.task_queue,
         repository=args.repository,
         reference=args.reference,
         issue_url=args.issue_url,
@@ -165,53 +103,7 @@ async def _start_workflow_handle(
         branch_name=args.branch_name,
         coding_agent_provider=args.coding_agent_provider,
     )
-
-    return await client.start_workflow(  # type: ignore[no-any-return]
-        ProcessWorkflow.run,
-        input_payload,
-        id=_generate_workflow_id(),
-        task_queue=args.task_queue,
-    )  # type: ignore[call-overload]
-
-
-async def _await_workflow_result(
-    address: str,
-    namespace: str,
-    workflow_id: str,
-    *,
-    run_id: str | None = None,
-) -> ProcessWorkflowOutput:
-    """Await the result for an existing workflow execution."""
-
-    client = await _create_temporal_client(address, namespace)
-    handle: WorkflowHandle[ProcessWorkflowOutput, Any] = client.get_workflow_handle(
-        workflow_id,
-        run_id=run_id,
-        result_type=ProcessWorkflowOutput,
-    )
-    return await _wait_for_completion(handle)
-
-
-async def _run_workflow(args: argparse.Namespace) -> ProcessWorkflowOutput:
-    handle = await _start_workflow_handle(args)
-    return await _wait_for_completion(handle)
-
-
-async def _wait_for_completion(handle: WorkflowHandle[ProcessWorkflowOutput, Any]) -> ProcessWorkflowOutput:
-    result_task = asyncio.create_task(handle.result())
-    try:
-        while True:
-            if result_task.done():
-                return result_task.result()  # type: ignore[no-any-return]
-            status: dict[str, Any] = await handle.query("clarification_status")
-            if status.get("status") == "clarification_required":
-                raise ClarificationPending(status)
-            await asyncio.sleep(STATUS_POLL_INTERVAL_SECONDS)
-    finally:
-        if not result_task.done():
-            result_task.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
-                await result_task
+    return await wait_for_completion(handle)
 
 
 def _print_result(result: ProcessWorkflowOutput, as_json: bool) -> None:

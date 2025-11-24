@@ -10,7 +10,7 @@ Operational procedures for the process workflow and worker.
 ## Responding to clarifications
 - When a run pauses for clarification, the CLI exits with status 2 and prints questions/assumptions.
 - Provide answers via the MCP tool `provide_agentsflow_clarification` or a Temporal signal named `provide_clarification` (args: lists of answers and assumptions).
-- Re-run `await_agentsflow_result` (MCP) or watch Temporal UI until the run resumes.
+- Re-run `await_agentsflow_result([workflow_id])` (returns after the first workflow finishes/pauses; call again for others) or watch Temporal UI until the run resumes.
 
 ## Provider and auth issues
 - Jira: ensure `JIRA_EMAIL`/`JIRA_API_TOKEN` are set and the issue host matches `atlassian.net`, contains `jira`, or is in `JIRA_HOST_ALLOWLIST`.

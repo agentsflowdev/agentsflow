@@ -4,7 +4,7 @@ Choose between local processes, Docker Compose, or the MCP server. All options r
 
 ## Local processes (default)
 1. Start Temporal (dev): `temporal server start-dev` or point `TEMPORAL_ADDRESS`/`TEMPORAL_NAMESPACE` at an existing cluster.
-2. Export secrets (`OPENAI_API_KEY`, `JIRA_EMAIL`/`JIRA_API_TOKEN` or `GITHUB_TOKEN`) in `.env`.
+2. Export secrets (`OPENAI_API_KEY`, `JIRA_EMAIL`/`JIRA_API_TOKEN` or `GITHUB_TOKEN`) into your environment (shell exports, direnv, or a local env file loaded by your process manager).
 3. Launch the worker:
    ```bash
    uv run python -m agentsflow.worker --task-queue process-workflow
