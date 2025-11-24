@@ -69,8 +69,8 @@ Once connected, you can use natural language to interact with the process workfl
 
 - "Call `start_agentsflow_process` on this repo with issue https://jira.example.com/browse/TEAM-123."
 - "Kick off `start_agentsflow_process` with task text 'Fix 500 error when cookie is missing' for the current repo."
-- "The workflow paused; send these answers via `provide_agentsflow_clarification` and then `await_agentsflow_result` with the workflow id in a list."
-- "Check the latest status for workflow `process-1a2b3c` using `await_agentsflow_result([\"process-1a2b3c\"])`."
+- "The workflow paused; send these answers via `provide_agentsflow_clarification` and then `await_agentsflow_result` with the workflow id in a list (it returns after the first workflow finishes or pauses)."
+- "Check the latest status for workflow `process-1a2b3c` using `await_agentsflow_result([\"process-1a2b3c\"])`; call again with remaining ids for multi-workflow checks."
 
 You can supply either an issue URL or a free-text task when calling `start_agentsflow_process`, but not both.
 

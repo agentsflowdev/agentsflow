@@ -25,7 +25,8 @@ mcp = FastMCP(
     instructions=(
         "This MCP server exposes the automation workflow. Start it with "
         "start_agentsflow_process (issue_url or task_text + repository_path) to receive the workflow_id/run_id, then "
-        "call await_agentsflow_result with a list of workflow_ids when you're ready to fetch the workflow output. "
+        "call await_agentsflow_result with a list of workflow_ids; it returns after the first workflow finishes or "
+        "pauses for clarification. Call again for remaining workflows. "
         "If a run pauses for clarifications, answer them via provide_agentsflow_clarification before waiting again. "
         "The repository_path argument must be the absolute filesystem path to the repo root "
         "(e.g., /Users/acme/src/app). "
