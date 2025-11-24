@@ -19,6 +19,7 @@ from acp import (
     RequestError,
     text_block,
 )
+from acp.connection import StreamDirection, StreamEvent
 from acp.schema import (
     AgentMessageChunk,
     AllowedOutcome,
@@ -181,7 +182,30 @@ class _SessionRegistry:
             raise RuntimeError("ACP agent process does not expose stdio pipes.")
 
         client_impl = _ACPClient(auto_approve=auto_approve, workspace_dir=workspace_dir)
-        connection = ClientSideConnection(lambda _agent: client_impl, process.stdin, process.stdout)
+
+        def _log_stream(event: StreamEvent) -> None:
+            message = event.message or {}
+            params = message.get("params")
+            path = params.get("path") if isinstance(params, dict) else None
+            _debug(
+                "ACP stream event",
+                {
+                    "direction": event.direction.value
+                    if isinstance(event.direction, StreamDirection)
+                    else str(event.direction),
+                    "method": message.get("method"),
+                    "id": message.get("id"),
+                    "path": path,
+                    "session_id": client_impl._session_id,  # noqa: SLF001
+                },
+            )
+
+        connection = ClientSideConnection(
+            lambda _agent: client_impl,
+            process.stdin,
+            process.stdout,
+            observers=[_log_stream],
+        )
 
         try:
             await connection.initialize(
