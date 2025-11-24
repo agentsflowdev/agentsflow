@@ -696,36 +696,43 @@ def _render_coding_prompt(
         f"Workspace directory: {workspace_dir or 'unknown'}",
     ]
     if feedback:
-        base.append("Outstanding feedback:\n" + "\n".join(f"- {item}" for item in feedback))
+        base.append(
+            "Outstanding feedback:\n"
+            + "\n".join(f"- {item}" for item in feedback)
+            + "\nAddress every feedback bullet explicitly (quote it, then answer) before concluding."
+        )
 
     if stage == "implementation":
         base.append(
-            "Implement the task end-to-end. Stay tightly scoped to the acceptance criteria—avoid creating "
-            "placeholder assets, renaming files, or adding new dependencies unless they are essential to the solution. "
-            "Summarise the work by listing each file you touched alongside the intent of the change. "
-            "Before you conclude, run the repository's existing linting and automated test commands that validate "
-            "the implementation and include their outcomes."
+            "Implement the task end-to-end. Stay tightly scoped—no refactors/renames or dependency adds/upgrades "
+            "unless strictly required; if you must, explain why and what changed. Run linting and automated test "
+            "commands; for each command, record the exact command and exit status plus a brief output snippet. If a "
+            "command cannot run, state why and what you tried. Confirm the workspace path looks correct before acting."
         )
     elif stage == "tests":
         base.append(
-            "Focus exclusively on automated tests. Limit edits to test code and supporting fixtures unless a minimal "
-            "production change is strictly required for the tests to run. Report which tests you created or updated "
-            "and any commands you ran. "
-            "Run the available linting and test suites (e.g., pytest, npm test, go test) to prove the new tests pass "
-            "and capture their results."
+            "Focus only on automated tests. Limit edits to tests/fixtures; make production edits only when tests "
+            "cannot run without them, and justify each one. Create or update tests, run the relevant automated test "
+            "and lint commands (e.g., pytest, npm test, go test), and list every command you run with its exit status "
+            "and a brief output snippet; if blocked, explain why and what you attempted. Confirm the workspace path "
+            "looks correct before acting."
         )
     else:  # review
         base.append(
             "Perform a thorough code review of the changes made in the current workspace. Highlight blockers, risks,"
-            "and suggested improvements. Do not make further code changes unless strictly required to inspect the code."
-            "Before concluding, run the relevant automated test or lint commands (e.g., pytest, npm test, go test) to "
-            "validate the current state and include the commands and results in your response."
+            "and suggested improvements. Do not make code changes unless strictly required to inspect. Run relevant "
+            "automated test or lint commands and list each command with exit status (or why it could not run). For "
+            "every issue or recommendation, cite the specific file/behavior involved and tag severity (issue = "
+            "blocking, recommendation = non-blocking)."
         )
     if stage == "implementation" or stage == "tests":
         base.append(
-            "When finished, provide a concise summary of your actions that enumerates every file created or modified,"
-            "explains the intent for each, and confirms you avoided unrelated or unnecessary changes."
+            "Before you conclude, output a bulleted change log where each bullet is 'path -> intent -> outcome "
+            "(include tests/commands affecting it)'. Cover every touched file and confirm no unrelated changes were "
+            "made. If you are blocked, stop and list blockers plus inputs needed—do not guess or fabricate results."
         )
+    else:
+        base.append("If you are blocked, stop and list blockers plus inputs needed—do not guess or fabricate results.")
     return "\n\n".join(base)
 
 
@@ -795,7 +802,8 @@ def _render_review_evaluation_prompt(task: IssuePayload, transcript: str) -> str
             "it as an issue and set approval to False. When only recommendations remain, set approval to True and "
             "leave the issues list empty. "
             "Flag approval as False if any blocking issues remain or if the transcript lacks concrete evidence that "
-            "code and automated tests were inspected. "
+            "code and automated tests were inspected. For every issue or recommendation, cite the specific file or "
+            "behaviour mentioned and keep severity clear (issues = blocking, recommendations = non-blocking). "
             "Ignore the state of git commits or untracked files—the workflow handles committing in a later step."
         ),
     ]
