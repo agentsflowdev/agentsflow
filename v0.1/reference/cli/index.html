@@ -1333,7 +1333,7 @@
 <ul>
 <li>Required inputs: <code>--repository</code> (path or git URL) and <code>--issue-url</code>.</li>
 <li>Connection flags: <code>--address</code> (<code>TEMPORAL_ADDRESS</code>), <code>--namespace</code> (<code>TEMPORAL_NAMESPACE</code>), <code>--task-queue</code> (<code>PROCESS_TASK_QUEUE</code>).</li>
-<li>Workflow controls: <code>--reference</code>, <code>--coding-agent-provider {claude,gemini,codex}</code>, <code>--model</code> (<code>PROCESS_AGENT_MODEL</code>), <code>--branch</code>.</li>
+<li>Workflow controls: <code>--reference</code>, <code>--coding-agent-provider {claude,gemini,codex}</code>, <code>--branch</code>.</li>
 <li>Output: <code>--json</code> / <code>--no-json</code> (defaults to <code>PROCESS_JSON_OUTPUT</code>); prints the <code>ProcessWorkflowOutput</code> payload on success.</li>
 <li>Exit codes: <code>0</code> success, <code>2</code> clarification required (payload printed), <code>1</code> error, <code>130</code> interrupted.</li>
 <li>Workflow IDs are generated automatically as <code>process-&lt;8 hex&gt;</code> unless you wrap the CLI yourself.</li>

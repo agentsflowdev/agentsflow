@@ -1373,7 +1373,7 @@
 
 
 <h1 id="environment-variables">Environment Variables<a class="headerlink" href="#environment-variables" title="Permanent link">&para;</a></h1>
-<p>AgentsFlow entry points load configuration from environment variables and <code>.env</code> files (via Pydantic settings). Defaults are chosen for local development; production deployments should supply explicit values.</p>
+<p>AgentsFlow entry points load configuration from environment variables. If you prefer <code>.env</code> files, load them yourself (e.g., <code>direnv</code>, <code>uv run --env-file</code>, or your process manager) before starting the CLI, MCP server, or worker. Defaults are chosen for local development; production deployments should supply explicit values.</p>
 <h2 id="temporal-connection-workflow-routing">Temporal connection &amp; workflow routing<a class="headerlink" href="#temporal-connection-workflow-routing" title="Permanent link">&para;</a></h2>
 <ul>
 <li><code>TEMPORAL_ADDRESS</code> (default <code>127.0.0.1:7233</code>) – Temporal frontend address for CLI, worker, and MCP.</li>
@@ -1406,7 +1406,7 @@
 <ul>
 <li><code>AGENTSFLOW_LOG_LEVEL</code> (default <code>INFO</code>) – Controls verbosity for CLI, worker, and MCP logs.</li>
 </ul>
-<p>Store secrets outside version control and prefer <code>.env</code> only for local development.</p>
+<p>Store secrets outside version control; if you keep a local <code>.env</code>, ensure it is never committed and is loaded by your shell/process manager before running AgentsFlow.</p>
 
 
 

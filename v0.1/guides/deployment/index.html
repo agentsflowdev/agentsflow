@@ -1355,7 +1355,7 @@
 <h2 id="local-processes-default">Local processes (default)<a class="headerlink" href="#local-processes-default" title="Permanent link">&para;</a></h2>
 <ol>
 <li>Start Temporal (dev): <code>temporal server start-dev</code> or point <code>TEMPORAL_ADDRESS</code>/<code>TEMPORAL_NAMESPACE</code> at an existing cluster.</li>
-<li>Export secrets (<code>OPENAI_API_KEY</code>, <code>JIRA_EMAIL</code>/<code>JIRA_API_TOKEN</code> or <code>GITHUB_TOKEN</code>) in <code>.env</code>.</li>
+<li>Export secrets (<code>OPENAI_API_KEY</code>, <code>JIRA_EMAIL</code>/<code>JIRA_API_TOKEN</code> or <code>GITHUB_TOKEN</code>) into your environment (shell exports, direnv, or a local env file loaded by your process manager).</li>
 <li>Launch the worker:
    <div class="highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </span>-m<span class="w"> </span>agentsflow.worker<span class="w"> </span>--task-queue<span class="w"> </span>process-workflow
 </code></pre></div></li>

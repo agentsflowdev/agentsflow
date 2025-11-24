@@ -1333,11 +1333,11 @@
 <h2 id="run-the-server">Run the server<a class="headerlink" href="#run-the-server" title="Permanent link">&para;</a></h2>
 <p><div class="highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>fastmcp<span class="w"> </span>run<span class="w"> </span>agentsflow/mcp_server.py
 </code></pre></div>
-It respects <code>.env</code> values for Temporal (<code>TEMPORAL_ADDRESS</code>, <code>TEMPORAL_NAMESPACE</code>), workflow defaults (<code>PROCESS_TASK_QUEUE</code>, <code>PROCESS_AGENT_MODEL</code>), and credentials (<code>OPENAI_API_KEY</code>, Jira/GitHub tokens).</p>
+Environment variables configure Temporal (<code>TEMPORAL_ADDRESS</code>, <code>TEMPORAL_NAMESPACE</code>), workflow defaults (<code>PROCESS_TASK_QUEUE</code>, <code>PROCESS_AGENT_MODEL</code>), and credentials (<code>OPENAI_API_KEY</code>, Jira/GitHub tokens). Load them however you prefer (shell export, direnv, uv --env-file, etc.).</p>
 <h2 id="tools">Tools<a class="headerlink" href="#tools" title="Permanent link">&para;</a></h2>
 <ul>
 <li><code>start_agentsflow_process(issue_url=None, task_text=None, repository_path)</code> – Starts the workflow asynchronously and returns <code>workflow_id</code>, <code>run_id</code>, <code>task_queue</code>, and connection metadata. Provide exactly one of <code>issue_url</code> (Jira/GitHub/etc.) <strong>or</strong> <code>task_text</code> (free-form description). <code>repository_path</code> must be an absolute path reachable by the worker host.</li>
-<li><code>await_agentsflow_result(workflow_id)</code> – Waits for the latest run of the workflow and returns the serialized <code>ProcessWorkflowOutput</code>. If the run paused for clarification, the payload contains the open questions/assumptions instead.</li>
+<li><code>await_agentsflow_result(workflow_ids)</code> – Accepts a list of workflow IDs, returns after the <em>first</em> workflow finishes or pauses, and includes only that workflow's payload. Call again with the remaining IDs to drain the rest. Payload shape: <code>{status: "completed", result: ProcessWorkflowOutput}</code> or <code>{status: "clarification_required", ...}</code>.</li>
 <li><code>provide_agentsflow_clarification(workflow_id, answers, assumptions=None)</code> – Signals the workflow to resume after a clarification pause.</li>
 </ul>
 <h2 id="operational-tips">Operational tips<a class="headerlink" href="#operational-tips" title="Permanent link">&para;</a></h2>

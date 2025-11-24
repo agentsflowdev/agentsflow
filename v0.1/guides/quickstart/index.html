@@ -1545,8 +1545,8 @@
 <ul>
 <li>"Call <code>start_agentsflow_process</code> on this repo with issue https://jira.example.com/browse/TEAM-123."</li>
 <li>"Kick off <code>start_agentsflow_process</code> with task text 'Fix 500 error when cookie is missing' for the current repo."</li>
-<li>"The workflow paused; send these answers via <code>provide_agentsflow_clarification</code> and then <code>await_agentsflow_result</code>."</li>
-<li>"Check the latest status for workflow <code>process-1a2b3c</code> using <code>await_agentsflow_result</code>."</li>
+<li>"The workflow paused; send these answers via <code>provide_agentsflow_clarification</code> and then <code>await_agentsflow_result</code> with the workflow id in a list (it returns after the first workflow finishes or pauses)."</li>
+<li>"Check the latest status for workflow <code>process-1a2b3c</code> using <code>await_agentsflow_result([\"process-1a2b3c\"])</code>; call again with remaining ids for multi-workflow checks."</li>
 </ul>
 <p>You can supply either an issue URL or a free-text task when calling <code>start_agentsflow_process</code>, but not both.</p>
 <h2 id="manual-setup-alternative">Manual Setup (Alternative)<a class="headerlink" href="#manual-setup-alternative" title="Permanent link">&para;</a></h2>
