@@ -11,7 +11,7 @@ from agentsflow.logging_utils import DEFAULT_LOG_LEVEL
 
 
 class CLISettings(BaseSettings):
-    """Settings source populated from environment variables or .env files."""
+    """Settings source populated from environment variables."""
 
     repository: str | None = None
     reference: str | None = None
@@ -29,8 +29,6 @@ class CLISettings(BaseSettings):
     log_level: str = Field(default=DEFAULT_LOG_LEVEL, alias="AGENTSFLOW_LOG_LEVEL")
 
     model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
         populate_by_name=True,
         extra="ignore",
     )

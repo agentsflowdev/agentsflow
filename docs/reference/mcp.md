@@ -6,7 +6,7 @@ The FastMCP bridge exposes the process workflow to MCP-compatible clients using 
 ```bash
 uv run fastmcp run agentsflow/mcp_server.py
 ```
-It respects `.env` values for Temporal (`TEMPORAL_ADDRESS`, `TEMPORAL_NAMESPACE`), workflow defaults (`PROCESS_TASK_QUEUE`, `PROCESS_AGENT_MODEL`), and credentials (`OPENAI_API_KEY`, Jira/GitHub tokens).
+Environment variables configure Temporal (`TEMPORAL_ADDRESS`, `TEMPORAL_NAMESPACE`), workflow defaults (`PROCESS_TASK_QUEUE`, `PROCESS_AGENT_MODEL`), and credentials (`OPENAI_API_KEY`, Jira/GitHub tokens). Load them however you prefer (shell export, direnv, uv --env-file, etc.).
 
 ## Tools
 - `start_agentsflow_process(issue_url=None, task_text=None, repository_path)` – Starts the workflow asynchronously and returns `workflow_id`, `run_id`, `task_queue`, and connection metadata. Provide exactly one of `issue_url` (Jira/GitHub/etc.) **or** `task_text` (free-form description). `repository_path` must be an absolute path reachable by the worker host.

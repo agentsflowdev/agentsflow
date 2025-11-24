@@ -30,7 +30,7 @@ mcp = FastMCP(
         "If a run pauses for clarifications, answer them via provide_agentsflow_clarification before waiting again. "
         "The repository_path argument must be the absolute filesystem path to the repo root "
         "(e.g., /Users/acme/src/app). "
-        "Authentication, Temporal connection details, and overrides are read from environment variables or .env."
+        "Authentication, Temporal connection details, and overrides are read from environment variables."
     ),
 )
 
