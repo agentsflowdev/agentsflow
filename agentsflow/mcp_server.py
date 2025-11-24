@@ -11,6 +11,8 @@ from agentsflow.cli import CLISettings
 from agentsflow.logging_utils import configure_logging
 from agentsflow.workflow_client import _await_first_change, _create_temporal_client, _start_workflow_handle
 
+_LAST_SEEN_EVENT: dict[str, int] = {}
+
 configure_logging(CLISettings().log_level)
 
 mcp = FastMCP(
@@ -147,6 +149,7 @@ async def await_agentsflow_result(
         defaults.address,
         defaults.namespace,
         workflow_ids,
+        seen_event_ids=_LAST_SEEN_EVENT,
     )
     await ctx.info(
         f"Workflow {event['workflow_id']} reported {event['kind']}.",
@@ -154,6 +157,8 @@ async def await_agentsflow_result(
     if event.get("result"):
         # pydantic models -> dict for MCP transport
         event["result"] = event["result"].model_dump()
+    if event.get("event_id") is not None:
+        _LAST_SEEN_EVENT[event["workflow_id"]] = event["event_id"]
     return event
 
 

@@ -87,6 +87,7 @@ async def _await_first_change(
     workflow_ids: Sequence[str],
     *,
     client: Client | None = None,
+    seen_event_ids: dict[str, int] | None = None,
 ) -> dict[str, Any]:
     """Return the first completion/clarification event across the given workflows.
 
@@ -99,6 +100,8 @@ async def _await_first_change(
     handles: list[WorkflowHandle[Any, Any]] = []
     for wid in workflow_ids:
         handles.append(client.get_workflow_handle(wid))
+
+    seen_event_ids = seen_event_ids or {}
 
     # Immediate clarification check (no polling loop).
     for handle in handles:
@@ -125,6 +128,8 @@ async def _await_first_change(
 
     async def _clarification_events(handle: WorkflowHandle[Any, Any]) -> AsyncIterator[dict[str, Any]]:
         async for hist in handle.fetch_history_events(wait_new_event=True):
+            if hist.event_id <= seen_event_ids.get(handle.id, 0):
+                continue
             attrs = hist.workflow_execution_signaled_event_attributes
             if not attrs or attrs.signal_name != "clarification_requested":
                 continue
@@ -134,6 +139,7 @@ async def _await_first_change(
                 "workflow_id": handle.id,
                 "run_id": handle.run_id,
                 "payload": decoded,
+                "event_id": hist.event_id,
             }
 
     async def _completion_event(handle: WorkflowHandle[Any, Any]) -> AsyncIterator[dict[str, Any]]:
@@ -144,6 +150,7 @@ async def _await_first_change(
                 "workflow_id": handle.id,
                 "run_id": handle.run_id,
                 "result": result,
+                "event_id": None,
             }
         except Exception as exc:  # pragma: no cover - defensive
             yield {
@@ -152,6 +159,7 @@ async def _await_first_change(
                 "run_id": handle.run_id,
                 "error": str(exc),
                 "error_type": exc.__class__.__name__,
+                "event_id": None,
             }
 
     # Build one merged stream per workflow, then merge those.
@@ -169,6 +177,8 @@ async def _await_first_change(
     async with merged.stream() as streamer:
         async for event in streamer:
             # First event wins; close everything else.
+            if event.get("event_id") is not None:
+                seen_event_ids[event["workflow_id"]] = event["event_id"]
             await streamer.aclose()
             return event
 

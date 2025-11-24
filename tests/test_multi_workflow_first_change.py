@@ -52,6 +52,46 @@ class SlowCompletionWorkflow:
 
 
 @pytest.mark.asyncio
+async def test_clarification_not_repeated_after_resolution():
+    env = await WorkflowEnvironment.start_time_skipping(data_converter=pydantic_data_converter)
+
+    async with env:
+        async with Worker(
+            env.client,
+            task_queue="test-first-change",
+            workflows=[ClarificationWorkflow],
+        ):
+            clarify_handle = await env.client.start_workflow(
+                ClarificationWorkflow.run,
+                id="clarify-repeat",
+                task_queue="test-first-change",
+            )
+
+            first = await _await_first_change(
+                env.client.service_client.config.target_host,
+                env.client.namespace,
+                [clarify_handle.id],
+                client=env.client,
+                seen_event_ids={},
+            )
+
+            assert first["kind"] == "clarification_required"
+
+            await clarify_handle.signal(ClarificationWorkflow.answer)
+
+            second = await _await_first_change(
+                env.client.service_client.config.target_host,
+                env.client.namespace,
+                [clarify_handle.id],
+                client=env.client,
+                seen_event_ids={clarify_handle.id: first.get("event_id", 0)},
+            )
+
+            assert second["kind"] == "completed"
+            assert second["workflow_id"] == clarify_handle.id
+
+
+@pytest.mark.asyncio
 async def test_first_change_returns_clarification_then_completion():
     env = await WorkflowEnvironment.start_time_skipping(data_converter=pydantic_data_converter)
 
