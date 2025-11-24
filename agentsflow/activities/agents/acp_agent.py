@@ -185,6 +185,9 @@ class _SessionRegistry:
 
         def _log_stream(event: StreamEvent) -> None:
             message = event.message or {}
+            method = message.get("method")
+            if method == "session/update":
+                return  # avoid noisy chunk spam; detailed chunk logs happen in sessionUpdate
             params = message.get("params")
             path = params.get("path") if isinstance(params, dict) else None
             _debug(
@@ -193,7 +196,7 @@ class _SessionRegistry:
                     "direction": event.direction.value
                     if isinstance(event.direction, StreamDirection)
                     else str(event.direction),
-                    "method": message.get("method"),
+                    "method": method,
                     "id": message.get("id"),
                     "path": path,
                     "session_id": client_impl._session_id,  # noqa: SLF001
