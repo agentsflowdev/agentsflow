@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-import os
 from typing import Any, Literal
 
 from temporalio.client import Client, WorkflowHandle
@@ -44,15 +43,10 @@ async def start_process_workflow(
     task_text: str | None,
     branch_name: str | None,
     coding_agent_provider: Literal["claude", "gemini", "codex"],
-    model: str | None,
 ) -> WorkflowHandle[ProcessWorkflowOutput, Any]:
     """Start the process workflow and return its handle."""
 
     client = await create_temporal_client(address, namespace)
-
-    if model:
-        # Expose the requested model to the worker via environment variable.
-        os.environ["PROCESS_AGENT_MODEL"] = model
 
     input_payload = ProcessWorkflowInput(
         repository=repository,

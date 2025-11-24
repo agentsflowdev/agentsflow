@@ -60,7 +60,6 @@ async def _start_workflow_tool_impl(
         task_text=task_text,
         branch_name=defaults.branch_name,
         coding_agent_provider=defaults.coding_agent_provider,
-        model=defaults.model,
     )
 
     payload = {

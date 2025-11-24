@@ -23,7 +23,6 @@ class CLISettings(BaseSettings):
     coding_agent_provider: Literal["claude", "gemini", "codex"] = Field(
         default="claude", alias="PROCESS_CODING_AGENT_PROVIDER"
     )
-    model: str | None = Field(default=None, alias="PROCESS_AGENT_MODEL")
     branch_name: str | None = None
     json_output: bool = Field(default=False, alias="PROCESS_JSON_OUTPUT")
     log_level: str = Field(default=DEFAULT_LOG_LEVEL, alias="AGENTSFLOW_LOG_LEVEL")

@@ -70,11 +70,6 @@ def _parse_args(argv: list[str], defaults: CLISettings) -> argparse.Namespace:
         help="Coding agent provider to use (env: PROCESS_CODING_AGENT_PROVIDER).",
     )
     parser.add_argument(
-        "--model",
-        default=defaults.model,
-        help="Override chat model used by the process agents (env: PROCESS_AGENT_MODEL).",
-    )
-    parser.add_argument(
         "--branch",
         dest="branch_name",
         default=defaults.branch_name,
@@ -107,7 +102,6 @@ async def _run_workflow(args: argparse.Namespace) -> ProcessWorkflowOutput:
         task_text=args.task_text,
         branch_name=args.branch_name,
         coding_agent_provider=args.coding_agent_provider,
-        model=args.model,
     )
     return await wait_for_completion(handle)
 
