@@ -166,8 +166,16 @@ async def _run_workflow_with_mocks(
             raise AssertionError("read_issue should not be called when task_text is supplied")
         return scenario.issue_result
 
-    @activity.defn(name="run_acp_agent")
-    async def run_acp_agent_activity(request: ACPRequest) -> ACPResponse:
+    @activity.defn(name="run_acp_implementation")
+    async def run_acp_implementation_activity(request: ACPRequest) -> ACPResponse:
+        return await mock_claude(request)
+
+    @activity.defn(name="run_acp_tests")
+    async def run_acp_tests_activity(request: ACPRequest) -> ACPResponse:
+        return await mock_claude(request)
+
+    @activity.defn(name="run_acp_review")
+    async def run_acp_review_activity(request: ACPRequest) -> ACPResponse:
         return await mock_claude(request)
 
     @activity.defn(name="finalize_git_changes")
@@ -191,16 +199,16 @@ async def _run_workflow_with_mocks(
         result = await fn(prompt)
         return result.output if isinstance(result, FakeAgentResult) else result
 
-    @activity.defn(name="run_implementation_agent")
-    async def run_implementation_agent_activity(prompt: str) -> ImplementationOutput:
+    @activity.defn(name="summarize_implementation")
+    async def summarize_implementation_activity(prompt: str) -> ImplementationOutput:
         return await _call_stub(implementation_summary, prompt)
 
-    @activity.defn(name="run_evaluation_agent")
-    async def run_evaluation_agent_activity(prompt: str) -> EvaluationOutput:
+    @activity.defn(name="parse_coding_transcript")
+    async def parse_coding_transcript_activity(prompt: str) -> EvaluationOutput:
         return await _call_stub(evaluation_agent.run, prompt)
 
-    @activity.defn(name="run_tests_agent")
-    async def run_tests_agent_activity(prompt: str) -> TestPlanOutput:
+    @activity.defn(name="summarize_tests")
+    async def summarize_tests_activity(prompt: str) -> TestPlanOutput:
         return await _call_stub(test_summary, prompt)
 
     @activity.defn(name="run_clarification_agent")
@@ -211,12 +219,12 @@ async def _run_workflow_with_mocks(
             assumptions=[],
         )
 
-    @activity.defn(name="run_review_agent")
-    async def run_review_agent_activity(prompt: str) -> ReviewOutput:
+    @activity.defn(name="parse_review_transcript")
+    async def parse_review_transcript_activity(prompt: str) -> ReviewOutput:
         return await _call_stub(review_agent.run, prompt)
 
-    @activity.defn(name="run_release_agent")
-    async def run_release_agent_activity(prompt: str) -> ReleasePlanOutput:
+    @activity.defn(name="draft_release_plan")
+    async def draft_release_plan_activity(prompt: str) -> ReleasePlanOutput:
         return await _call_stub(release_agent, prompt)
 
     if external_settings is None:
@@ -245,14 +253,16 @@ async def _run_workflow_with_mocks(
             activities=[
                 create_git_worktree_activity,
                 read_issue_activity,
-                run_acp_agent_activity,
+                run_acp_implementation_activity,
+                run_acp_tests_activity,
+                run_acp_review_activity,
                 finalize_git_changes_activity,
                 close_acp_session_activity,
-                run_implementation_agent_activity,
-                run_evaluation_agent_activity,
-                run_tests_agent_activity,
-                run_review_agent_activity,
-                run_release_agent_activity,
+                summarize_implementation_activity,
+                parse_coding_transcript_activity,
+                summarize_tests_activity,
+                parse_review_transcript_activity,
+                draft_release_plan_activity,
                 run_clarification_agent_activity,
             ],
         ):

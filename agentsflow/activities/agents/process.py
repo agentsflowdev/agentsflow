@@ -172,23 +172,23 @@ def _clarification_agent() -> Agent[None, ClarificationOutput]:
     )
 
 
-async def run_implementation_agent(prompt: str) -> ImplementationOutput:
+async def summarize_implementation(prompt: str) -> ImplementationOutput:
     return (await _implementation_agent().run(prompt)).output
 
 
-async def run_evaluation_agent(prompt: str) -> EvaluationOutput:
+async def parse_coding_transcript(prompt: str) -> EvaluationOutput:
     return (await _evaluation_agent().run(prompt)).output
 
 
-async def run_tests_agent(prompt: str) -> TestPlanOutput:
+async def summarize_tests(prompt: str) -> TestPlanOutput:
     return (await _tests_agent().run(prompt)).output
 
 
-async def run_review_agent(prompt: str) -> ReviewOutput:
+async def parse_review_transcript(prompt: str) -> ReviewOutput:
     return (await _review_agent().run(prompt)).output
 
 
-async def run_release_agent(prompt: str) -> ReleasePlanOutput:
+async def draft_release_plan(prompt: str) -> ReleasePlanOutput:
     return (await _release_agent().run(prompt)).output
 
 
@@ -206,10 +206,10 @@ __all__ = [
     "ReviewOutput",
     "ReleasePlanOutput",
     "ClarificationOutput",
-    "run_implementation_agent",
-    "run_evaluation_agent",
-    "run_tests_agent",
-    "run_review_agent",
+    "summarize_implementation",
+    "parse_coding_transcript",
+    "summarize_tests",
+    "parse_review_transcript",
     "run_clarification_agent",
-    "run_release_agent",
+    "draft_release_plan",
 ]

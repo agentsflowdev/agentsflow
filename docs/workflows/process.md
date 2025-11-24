@@ -23,11 +23,11 @@ graph TD
 - **Git worktree** (`create_git_worktree`, 4m timeout, 3 retries) – clones or reuses the source repository and prepares an isolated worktree rooted at the requested reference.
 - **Issue ingestion** (`read_issue`, 2m timeout, 4 retries) – picks Jira or GitHub based on the URL and available credentials, returning normalized summary, description, status, and comments.
 - **Clarification gate** (`run_clarification_agent`, 2m timeout) – halts the workflow if the agent flags missing requirements. Operators answer via the `provide_clarification` signal; status is exposed through the `clarification_status` query.
-- **Implementation loop** – ACP coding agent plus `run_evaluation_agent` feedback, up to 4 attempts. Feedback from evaluation is passed back into subsequent prompts.
+- **Implementation loop** – `run_acp_implementation` plus `parse_coding_transcript` feedback, up to 4 attempts. Feedback from evaluation is passed back into subsequent prompts.
 - **Tests loop (conditional)** – Runs when evaluation shows missing automated tests. Up to 5 attempts to have the coding agent add coverage, re-evaluating after each pass.
-- **Review loop** – ACP review session followed by `run_review_agent`; up to 5 attempts until approval is granted. Review feedback is fed back into the coding agent if changes are needed.
-- **Summaries** – Generates implementation and (when tests exist) testing summaries for traceability via `run_implementation_agent` and `run_tests_agent`.
-- **Release planning** – `run_release_agent` proposes a branch, commit message, PR title/body, and follow-up items. CLI branch overrides take precedence.
+- **Review loop** – `run_acp_review` followed by `parse_review_transcript`; up to 5 attempts until approval is granted. Review feedback is fed back into the coding agent if changes are needed.
+- **Summaries** – Generates implementation and (when tests exist) testing summaries for traceability via `summarize_implementation` and `summarize_tests`.
+- **Release planning** – `draft_release_plan` proposes a branch, commit message, PR title/body, and follow-up items. CLI branch overrides take precedence.
 - **Finalize git changes** (`finalize_git_changes`, 2m timeout) – checks out the branch, stages and commits any changes, optionally pushes to the configured remote (push is off by default), and cleans up the temporary worktree.
 - **Session cleanup** – Both coding and review ACP sessions are closed even on failure paths.
 

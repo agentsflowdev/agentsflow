@@ -255,8 +255,13 @@ class ProcessWorkflow:
         ) -> ACPResponse:
             nonlocal coding_session_id, review_session_id
             session_id = coding_session_id if session_kind == "coding" else review_session_id
+            activity_name = {
+                "implementation": "run_acp_implementation",
+                "tests": "run_acp_tests",
+                "review": "run_acp_review",
+            }[stage]
             response = await workflow.execute_activity(
-                "run_acp_agent",
+                activity_name,
                 ACPRequest(
                     prompt=prompt,
                     agent_type=params.coding_agent_provider,
@@ -338,7 +343,7 @@ class ProcessWorkflow:
                         stages=("implementation", "tests"),
                     )
                     evaluation = await _run_agent_activity(
-                        "run_evaluation_agent",
+                        "parse_coding_transcript",
                         _render_evaluation_prompt(
                             stage="implementation",
                             task=task_payload,
@@ -406,7 +411,7 @@ class ProcessWorkflow:
                         )
 
                         evaluation = await _run_agent_activity(
-                            "run_evaluation_agent",
+                            "parse_coding_transcript",
                             _render_evaluation_prompt(
                                 stage="tests",
                                 task=task_payload,
@@ -466,7 +471,7 @@ class ProcessWorkflow:
                     review_response = await _invoke_coding_agent("review", review_prompt_text, session_kind="review")
 
                     review = await _run_agent_activity(
-                        "run_review_agent",
+                        "parse_review_transcript",
                         _render_review_evaluation_prompt(task_payload, review_response.message),
                         ReviewOutput,
                     )
@@ -498,7 +503,7 @@ class ProcessWorkflow:
                 )
 
             implementation = await _run_agent_activity(
-                "run_implementation_agent",
+                "summarize_implementation",
                 _render_implementation_summary_prompt(task_payload, agent_runs),
                 ImplementationOutput,
             )
@@ -510,7 +515,7 @@ class ProcessWorkflow:
 
             if evaluation.automated_tests_implemented:
                 test_plan = await _run_agent_activity(
-                    "run_tests_agent",
+                    "summarize_tests",
                     _render_test_summary_prompt(task_payload, agent_runs),
                     TestPlanOutput,
                 )
@@ -519,7 +524,7 @@ class ProcessWorkflow:
                 test_plan = None
 
             release_plan = await _run_agent_activity(
-                "run_release_agent",
+                "draft_release_plan",
                 _render_release_prompt(
                     task_payload,
                     implementation,
