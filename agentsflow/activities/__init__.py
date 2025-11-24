@@ -15,6 +15,15 @@ from .agents import (
     ReviewOutput,
     TestPlanOutput,
     close_session,
+    draft_release_plan,
+    parse_coding_transcript,
+    parse_review_transcript,
+    run_acp_implementation,
+    run_acp_review,
+    run_acp_tests,
+    run_clarification_agent,
+    summarize_implementation,
+    summarize_tests,
 )
 from .git import (
     FinalizeGitRequest,
@@ -47,6 +56,15 @@ __all__ = [
     "ClarificationOutput",
     "read_issue",
     "close_acp_session",
+    "run_acp_implementation",
+    "run_acp_tests",
+    "run_acp_review",
+    "parse_coding_transcript",
+    "parse_review_transcript",
+    "summarize_implementation",
+    "summarize_tests",
+    "run_clarification_agent",
+    "draft_release_plan",
 ]
 
 
@@ -62,18 +80,20 @@ class AgentsFlowActivities:
         self.issues = IssueActivities()
         self.agents = AgentActivities(auto_approve=auto_approve)
 
-        # Backwards-compatible attribute exposure
+        # Attribute exposure for worker registration
         self.create_git_worktree = self.git.create_git_worktree
         self.finalize_git_changes = self.git.finalize_git_changes
         self.read_issue = self.issues.read_issue
-        self.run_acp_agent = self.agents.run_acp_agent
+        self.run_acp_implementation = self.agents.run_acp_implementation
+        self.run_acp_tests = self.agents.run_acp_tests
+        self.run_acp_review = self.agents.run_acp_review
         self.close_acp_session = self.agents.close_acp_session
-        self.run_implementation_agent = self.agents.run_implementation_agent
-        self.run_evaluation_agent = self.agents.run_evaluation_agent
-        self.run_tests_agent = self.agents.run_tests_agent
-        self.run_review_agent = self.agents.run_review_agent
+        self.summarize_implementation = self.agents.summarize_implementation
+        self.parse_coding_transcript = self.agents.parse_coding_transcript
+        self.summarize_tests = self.agents.summarize_tests
+        self.parse_review_transcript = self.agents.parse_review_transcript
         self.run_clarification_agent = self.agents.run_clarification_agent
-        self.run_release_agent = self.agents.run_release_agent
+        self.draft_release_plan = self.agents.draft_release_plan
 
     def activities(self) -> list[Any]:
         return self.git.activities() + self.issues.activities() + self.agents.activities()
