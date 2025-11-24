@@ -1371,11 +1371,11 @@
 <li><strong>Git worktree</strong> (<code>create_git_worktree</code>, 4m timeout, 3 retries) – clones or reuses the source repository and prepares an isolated worktree rooted at the requested reference.</li>
 <li><strong>Issue ingestion</strong> (<code>read_issue</code>, 2m timeout, 4 retries) – picks Jira or GitHub based on the URL and available credentials, returning normalized summary, description, status, and comments.</li>
 <li><strong>Clarification gate</strong> (<code>run_clarification_agent</code>, 2m timeout) – halts the workflow if the agent flags missing requirements. Operators answer via the <code>provide_clarification</code> signal; status is exposed through the <code>clarification_status</code> query.</li>
-<li><strong>Implementation loop</strong> – ACP coding agent plus <code>run_evaluation_agent</code> feedback, up to 4 attempts. Feedback from evaluation is passed back into subsequent prompts.</li>
+<li><strong>Implementation loop</strong> – <code>run_acp_implementation</code> plus <code>parse_coding_transcript</code> feedback, up to 4 attempts. Feedback from evaluation is passed back into subsequent prompts.</li>
 <li><strong>Tests loop (conditional)</strong> – Runs when evaluation shows missing automated tests. Up to 5 attempts to have the coding agent add coverage, re-evaluating after each pass.</li>
-<li><strong>Review loop</strong> – ACP review session followed by <code>run_review_agent</code>; up to 5 attempts until approval is granted. Review feedback is fed back into the coding agent if changes are needed.</li>
-<li><strong>Summaries</strong> – Generates implementation and (when tests exist) testing summaries for traceability via <code>run_implementation_agent</code> and <code>run_tests_agent</code>.</li>
-<li><strong>Release planning</strong> – <code>run_release_agent</code> proposes a branch, commit message, PR title/body, and follow-up items. CLI branch overrides take precedence.</li>
+<li><strong>Review loop</strong> – <code>run_acp_review</code> followed by <code>parse_review_transcript</code>; up to 5 attempts until approval is granted. Review feedback is fed back into the coding agent if changes are needed.</li>
+<li><strong>Summaries</strong> – Generates implementation and (when tests exist) testing summaries for traceability via <code>summarize_implementation</code> and <code>summarize_tests</code>.</li>
+<li><strong>Release planning</strong> – <code>draft_release_plan</code> proposes a branch, commit message, PR title/body, and follow-up items. CLI branch overrides take precedence.</li>
 <li><strong>Finalize git changes</strong> (<code>finalize_git_changes</code>, 2m timeout) – checks out the branch, stages and commits any changes, optionally pushes to the configured remote (push is off by default), and cleans up the temporary worktree.</li>
 <li><strong>Session cleanup</strong> – Both coding and review ACP sessions are closed even on failure paths.</li>
 </ul>
