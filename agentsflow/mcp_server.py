@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-from typing import Any
+from typing import Annotated, Any
 
 from fastmcp import Context, FastMCP
+from pydantic import Field
 
 from agentsflow.logging_utils import configure_logging
 from agentsflow.settings import CLISettings
@@ -123,9 +124,9 @@ async def _await_workflow_tool_impl(
 
 @mcp.tool
 async def provide_agentsflow_clarification(
-    workflow_id: str,
-    answers: list[str],
-    assumptions: list[str] | None = None,
+    workflow_id: Annotated[str, Field(description="Workflow ID to resume")],
+    answers: Annotated[list[str], Field(description="Answers to the clarification questions")],
+    assumptions: Annotated[list[str] | None, Field(description="Optional list of assumptions to confirm")] = None,
     *,
     ctx: Context,
 ) -> dict[str, Any]:
@@ -141,9 +142,17 @@ async def provide_agentsflow_clarification(
 
 @mcp.tool
 async def start_agentsflow_process(
-    repository_path: str,
-    issue_url: str | None = None,
-    task_text: str | None = None,
+    repository_path: Annotated[str, Field(description="Absolute filesystem path to the repository root")],
+    issue_url: Annotated[
+        str | None,
+        Field(description="Issue URL to process (Jira/GitHub/etc.); mutually exclusive with task_text"),
+    ] = None,
+    task_text: Annotated[
+        str | None,
+        Field(
+            description="Free-text task description when no issue_url is available; mutually exclusive with issue_url"
+        ),
+    ] = None,
     *,
     ctx: Context,
 ) -> dict[str, Any]:
@@ -163,7 +172,10 @@ async def start_agentsflow_process(
 
 @mcp.tool
 async def await_agentsflow_result(
-    workflow_ids: list[str],
+    workflow_ids: Annotated[
+        list[str],
+        Field(description="One or more workflow IDs to watch; returns after the first finishes or clarifies"),
+    ],
     *,
     ctx: Context,
 ) -> dict[str, Any]:
