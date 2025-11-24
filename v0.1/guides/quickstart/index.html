@@ -1501,17 +1501,18 @@
 <li><strong>uvx</strong> (from <a href="https://github.com/astral-sh/uv#installation">uv</a>)</li>
 <li><strong>Temporal CLI/dev server</strong>: install and run via https://docs.temporal.io/cli (the stack will auto-start a local dev server if port 7233 is free)</li>
 <li><strong>Secrets</strong>: <code>OPENAI_API_KEY</code> plus issue provider credentials (Jira or GitHub)</li>
+<li><strong>Coding agent CLI</strong>: install one of <strong>Claude Code</strong>, <strong>Codex CLI</strong>, or <strong>Gemini CLI</strong> (whatever assistant you plan to use)</li>
 </ul>
 <h2 id="1-option-1-use-with-ai-assistant-recommended">1) Option 1: Use with AI Assistant (Recommended)<a class="headerlink" href="#1-option-1-use-with-ai-assistant-recommended" title="Permanent link">&para;</a></h2>
 <p>To use AgentsFlow with your AI assistant, configure it as an MCP server.</p>
 <h3 id="claude-code">Claude Code<a class="headerlink" href="#claude-code" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code>claude<span class="w"> </span>mcp<span class="w"> </span>add<span class="w"> </span>agentsflow<span class="w"> </span>--scope<span class="w"> </span>user<span class="w"> </span>--env<span class="w"> </span><span class="nv">OPENAI_API_KEY</span><span class="o">=</span>sk-...<span class="w"> </span>--<span class="w"> </span>uvx<span class="w"> </span>agentsflow
+<div class="highlight"><pre><span></span><code>claude<span class="w"> </span>mcp<span class="w"> </span>add<span class="w"> </span>agentsflow<span class="w"> </span>--scope<span class="w"> </span>user<span class="w"> </span>--env<span class="w"> </span><span class="nv">OPENAI_API_KEY</span><span class="o">=</span>sk-...<span class="w"> </span>--env<span class="w"> </span><span class="nv">PROCESS_CODING_AGENT_PROVIDER</span><span class="o">=</span>claude<span class="w"> </span>--<span class="w"> </span>uvx<span class="w"> </span>agentsflow
 </code></pre></div>
 <h3 id="gemini-cli">Gemini CLI<a class="headerlink" href="#gemini-cli" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code>gemini<span class="w"> </span>mcp<span class="w"> </span>add<span class="w"> </span>agentsflow<span class="w"> </span>--scope<span class="w"> </span>user<span class="w"> </span>--env<span class="w"> </span><span class="nv">OPENAI_API_KEY</span><span class="o">=</span>sk-...<span class="w"> </span>--<span class="w"> </span>uvx<span class="w"> </span>agentsflow
+<div class="highlight"><pre><span></span><code>gemini<span class="w"> </span>mcp<span class="w"> </span>add<span class="w"> </span>agentsflow<span class="w"> </span>--scope<span class="w"> </span>user<span class="w"> </span>--env<span class="w"> </span><span class="nv">OPENAI_API_KEY</span><span class="o">=</span>sk-...<span class="w"> </span>--env<span class="w"> </span><span class="nv">PROCESS_CODING_AGENT_PROVIDER</span><span class="o">=</span>gemini<span class="w"> </span>--<span class="w"> </span>uvx<span class="w"> </span>agentsflow
 </code></pre></div>
 <h3 id="codex-cli">Codex CLI<a class="headerlink" href="#codex-cli" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code>codex<span class="w"> </span>mcp<span class="w"> </span>add<span class="w"> </span>agentsflow<span class="w"> </span>--env<span class="w"> </span><span class="nv">OPENAI_API_KEY</span><span class="o">=</span>sk-...<span class="w"> </span>--<span class="w"> </span>uvx<span class="w"> </span>agentsflow
+<div class="highlight"><pre><span></span><code>codex<span class="w"> </span>mcp<span class="w"> </span>add<span class="w"> </span>agentsflow<span class="w"> </span>--env<span class="w"> </span><span class="nv">OPENAI_API_KEY</span><span class="o">=</span>sk-...<span class="w"> </span>--env<span class="w"> </span><span class="nv">PROCESS_CODING_AGENT_PROVIDER</span><span class="o">=</span>codex<span class="w"> </span>--<span class="w"> </span>uvx<span class="w"> </span>agentsflow
 </code></pre></div>
 <h3 id="cursor">Cursor<a class="headerlink" href="#cursor" title="Permanent link">&para;</a></h3>
 <p>Add to <code>.cursor/mcp.json</code> or configure via <strong>Settings &gt; MCP</strong>:</p>
@@ -1521,12 +1522,14 @@
 <span class="w">      </span><span class="nt">&quot;command&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;uvx&quot;</span><span class="p">,</span>
 <span class="w">      </span><span class="nt">&quot;args&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;agentsflow&quot;</span><span class="p">],</span>
 <span class="w">      </span><span class="nt">&quot;env&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<span class="w">        </span><span class="nt">&quot;OPENAI_API_KEY&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;sk-...&quot;</span>
+<span class="w">        </span><span class="nt">&quot;OPENAI_API_KEY&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;sk-...&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="nt">&quot;PROCESS_CODING_AGENT_PROVIDER&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;codex&quot;</span>
 <span class="w">      </span><span class="p">}</span>
 <span class="w">    </span><span class="p">}</span>
 <span class="w">  </span><span class="p">}</span>
 <span class="p">}</span>
 </code></pre></div>
+<p>Set <code>PROCESS_CODING_AGENT_PROVIDER</code> to pick which coding agent (claude / codex / gemini) AgentsFlow will delegate code actions to.</p>
 <h2 id="2-option-2-standalone-http-server">2) Option 2: Standalone HTTP Server<a class="headerlink" href="#2-option-2-standalone-http-server" title="Permanent link">&para;</a></h2>
 <p>If you want to run the stack independently (e.g. for debugging or remote access via SSE/HTTP):</p>
 <div class="highlight"><pre><span></span><code>uvx<span class="w"> </span>agentsflow<span class="w"> </span>--transport<span class="w"> </span>streamable-http
