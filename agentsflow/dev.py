@@ -240,6 +240,7 @@ def main(transport: str) -> None:
     # Register signal handlers
     signal.signal(signal.SIGINT, handle_signal)
     signal.signal(signal.SIGTERM, handle_signal)
+    signal.signal(signal.SIGHUP, handle_signal)
 
     ACTIVE_CONSOLE.print(
         "[bold blue]AgentsFlow Local Dev Launcher[/bold blue]\n"
