@@ -103,13 +103,21 @@ async def _await_first_change(
 
     seen_event_ids = seen_event_ids or {}
 
-    # Immediate clarification check (no polling loop).
+    async def _latest_event_id(handle: WorkflowHandle[Any, Any]) -> int:
+        last_event_id = seen_event_ids.get(handle.id, 0)
+        async for hist in handle.fetch_history_events(wait_new_event=False):
+            last_event_id = max(last_event_id, hist.event_id)
+        return last_event_id
+
+    # Immediate clarification check (no polling loop) but record watermark to avoid replay.
     for handle in handles:
         try:
             status = await handle.query("clarification_status")
         except Exception:
             continue
         if status.get("status") == "clarification_required":
+            event_id = await _latest_event_id(handle)
+            seen_event_ids[handle.id] = event_id
             return {
                 "kind": "clarification_required",
                 "workflow_id": handle.id,
@@ -118,6 +126,7 @@ async def _await_first_change(
                     "questions": status.get("questions", []),
                     "assumptions": status.get("assumptions", []),
                 },
+                "event_id": event_id,
             }
 
     async def _decode_details(details: Mapping[str, Any]) -> dict[str, Any]:
