@@ -1,4 +1,5 @@
 import re
+from random import Random
 
 import pytest
 from pydantic import ValidationError
@@ -31,12 +32,12 @@ def test_build_task_payload_filters_empty_comments() -> None:
 
 
 def test_issue_details_from_task_text_splits_summary_and_description() -> None:
-    details = _issue_details_from_task_text("Fix login\n\nHandle missing cookie")
+    details = _issue_details_from_task_text("Fix login\n\nHandle missing cookie", rng=Random(0))
 
     assert details.summary == "Fix login"
     assert details.description == "Handle missing cookie"
     assert details.issue_url == "adhoc://task"
-    assert re.match(r"TASK-[0-9A-F]{8}", details.issue_key)
+    assert re.match(r"TASK-[A-Z0-9]{8}", details.issue_key)
 
 
 def test_process_workflow_input_requires_single_source() -> None:

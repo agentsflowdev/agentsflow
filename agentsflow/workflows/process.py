@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import os
-import uuid
+import string
 from collections.abc import Sequence
 from datetime import timedelta
+from random import Random
 from typing import Any, Literal
 
 from pydantic import AliasChoices, BaseModel, Field, model_validator
@@ -188,7 +189,7 @@ class ProcessWorkflow:
                 result_type=IssueDetails,
             )
         else:
-            issue_result = _issue_details_from_task_text(params.task_text or "")
+            issue_result = _issue_details_from_task_text(params.task_text or "", rng=workflow.random())
         logger.info(
             "Issue context loaded",
             extra={
@@ -638,8 +639,8 @@ def _build_task_payload(details: IssueDetails) -> IssuePayload:
     )
 
 
-def _issue_details_from_task_text(task_text: str) -> IssueDetails:
-    """Create a synthetic IssueDetails payload from ad-hoc task text."""
+def _issue_details_from_task_text(task_text: str, *, rng: Random) -> IssueDetails:
+    """Create a synthetic IssueDetails payload from ad-hoc task text using deterministic RNG."""
 
     normalized_lines = [line.strip() for line in task_text.splitlines() if line.strip()]
     summary = normalized_lines[0] if normalized_lines else "Ad-hoc task"
@@ -647,9 +648,10 @@ def _issue_details_from_task_text(task_text: str) -> IssueDetails:
     if not description:
         description = summary
 
-    issue_key = f"TASK-{uuid.uuid4().hex[:8].upper()}"
-    # Cap summary to avoid excessively long prompt headers
     capped_summary = summary[:200]
+    alphabet = string.ascii_uppercase + string.digits
+    suffix = "".join(rng.choice(alphabet) for _ in range(8))
+    issue_key = f"TASK-{suffix}"
     return IssueDetails(
         issue_key=issue_key,
         issue_url="adhoc://task",
